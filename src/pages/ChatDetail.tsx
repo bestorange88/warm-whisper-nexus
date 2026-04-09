@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical, X, FileText, Download, Loader2, Check, CheckCheck, Copy, Trash2, Undo2 } from 'lucide-react';
+import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical, X, FileText, Download, Loader2, Check, CheckCheck, Copy, Trash2, Undo2, Reply } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMessages, useSendMessage, useConversation, useRecallMessage, useDeleteMessage, useReadReceipt } from '@/hooks/useConversations';
 import { useProfile } from '@/hooks/useProfile';
@@ -26,6 +26,18 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function getMessagePreviewText(msg: Message | undefined): string {
+  if (!msg) return '[消息不存在]';
+  if (msg.is_deleted) return '[消息已撤回]';
+  switch (msg.type) {
+    case 'image': return '[图片]';
+    case 'file': return `[文件] ${msg.file_name || ''}`;
+    case 'audio': return '[语音]';
+    case 'video': return '[视频]';
+    default: return msg.content || '';
+  }
+}
+
 interface MessageMenuProps {
   msg: Message;
   isOwn: boolean;
@@ -34,9 +46,10 @@ interface MessageMenuProps {
   onRecall: () => void;
   onDelete: () => void;
   onCopy: () => void;
+  onReply: () => void;
 }
 
-function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete, onCopy }: MessageMenuProps) {
+function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete, onCopy, onReply }: MessageMenuProps) {
   const canRecall = isOwn && Date.now() - new Date(msg.created_at).getTime() < RECALL_WINDOW_MS;
 
   useEffect(() => {
@@ -55,6 +68,9 @@ function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete,
       style={{ top: position.y, left: position.x, transform: 'translate(-50%, -100%)' }}
       onClick={(e) => e.stopPropagation()}
     >
+      <button onClick={onReply} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
+        <Reply className="h-4 w-4" /> 回复
+      </button>
       {msg.type === 'text' && msg.content && (
         <button onClick={onCopy} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
           <Copy className="h-4 w-4" /> 复制
@@ -74,6 +90,27 @@ function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete,
   );
 }
 
+/** Quoted message block shown inside a reply bubble */
+function QuotedMessage({ replyToId, messagesMap, isOwn }: { replyToId: string; messagesMap: Map<string, Message>; isOwn: boolean }) {
+  const original = messagesMap.get(replyToId);
+  const senderName = original?.sender?.display_name || original?.sender?.username || '未知';
+  const preview = getMessagePreviewText(original);
+
+  return (
+    <div
+      className={cn(
+        'mb-1 rounded-lg border-l-2 px-2.5 py-1.5 text-xs',
+        isOwn
+          ? 'border-white/40 bg-white/15 text-white/80'
+          : 'border-stone-300 bg-stone-50 text-stone-500'
+      )}
+    >
+      <p className="font-medium">{senderName}</p>
+      <p className="mt-0.5 truncate">{preview.length > 40 ? preview.slice(0, 40) + '…' : preview}</p>
+    </div>
+  );
+}
+
 export default function ChatDetail() {
   const { conversationId } = useParams<{ conversationId: string }>();
   const { user } = useAuth();
@@ -88,10 +125,19 @@ export default function ChatDetail() {
   const [uploading, setUploading] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ msg: Message; x: number; y: number } | null>(null);
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
+
+  // Build a map for quick message lookup (for quoted messages)
+  const messagesMap = useMemo(() => {
+    const map = new Map<string, Message>();
+    messages?.forEach((m) => map.set(m.id, m));
+    return map;
+  }, [messages]);
 
   // Get other user id for direct chats
   useEffect(() => {
@@ -108,7 +154,6 @@ export default function ChatDetail() {
 
   const { data: otherProfile } = useProfile(conversation?.type === 'direct' ? otherUserId ?? undefined : undefined);
 
-  // Read receipt: other user's last_read_at
   const isDirectChat = conversation?.type === 'direct';
   const { data: otherLastRead } = useReadReceipt(
     isDirectChat ? conversationId : undefined,
@@ -134,11 +179,14 @@ export default function ChatDetail() {
     if (!input.trim() || !user || !conversationId) return;
     const content = input.trim();
     setInput('');
+    const replyToId = replyTo?.id;
+    setReplyTo(null);
     await sendMessage.mutateAsync({
       conversation_id: conversationId,
       sender_id: user.id,
       type: 'text',
       content,
+      ...(replyToId ? { reply_to: replyToId } : {}),
     });
   };
 
@@ -151,37 +199,19 @@ export default function ChatDetail() {
 
   const handleCall = (callType: 'audio' | 'video') => {
     if (!otherUserId || !conversationId) return;
-    initiateCall(
-      conversationId,
-      otherUserId,
-      callType,
-      otherProfile?.display_name || otherProfile?.username,
-      otherProfile?.avatar_url || undefined,
-    );
+    initiateCall(conversationId, otherUserId, callType, otherProfile?.display_name || otherProfile?.username, otherProfile?.avatar_url || undefined);
   };
 
   const uploadFile = useCallback(async (file: File, type: 'image' | 'file') => {
     if (!user || !conversationId) return;
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error('文件大小不能超过 10MB');
-      return;
-    }
-
+    if (file.size > MAX_FILE_SIZE) { toast.error('文件大小不能超过 10MB'); return; }
     setUploading(true);
     try {
       const ext = file.name.split('.').pop() || 'bin';
       const path = `${user.id}/${conversationId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('chat-media')
-        .upload(path, file);
-
+      const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, file);
       if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from('chat-media')
-        .getPublicUrl(path);
-
+      const { data: urlData } = supabase.storage.from('chat-media').getPublicUrl(path);
       await sendMessage.mutateAsync({
         conversation_id: conversationId,
         sender_id: user.id,
@@ -208,45 +238,27 @@ export default function ChatDetail() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const type = IMAGE_TYPES.includes(file.type) ? 'image' : 'file';
-    uploadFile(file, type);
+    uploadFile(file, IMAGE_TYPES.includes(file.type) ? 'image' : 'file');
     e.target.value = '';
   };
 
-  // Long press / context menu for messages
+  // Long press / context menu
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const handleMsgTouchStart = (e: React.TouchEvent, msg: Message) => {
     const touch = e.touches[0];
-    longPressTimer.current = setTimeout(() => {
-      setContextMenu({ msg, x: touch.clientX, y: touch.clientY - 10 });
-    }, 500);
+    longPressTimer.current = setTimeout(() => { setContextMenu({ msg, x: touch.clientX, y: touch.clientY - 10 }); }, 500);
   };
-
-  const handleMsgTouchEnd = () => {
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-  };
-
-  const handleMsgContextMenu = (e: React.MouseEvent, msg: Message) => {
-    e.preventDefault();
-    setContextMenu({ msg, x: e.clientX, y: e.clientY - 10 });
-  };
+  const handleMsgTouchEnd = () => { if (longPressTimer.current) clearTimeout(longPressTimer.current); };
+  const handleMsgContextMenu = (e: React.MouseEvent, msg: Message) => { e.preventDefault(); setContextMenu({ msg, x: e.clientX, y: e.clientY - 10 }); };
 
   const handleRecall = async () => {
     if (!contextMenu || !user || !conversationId) return;
     const msg = contextMenu.msg;
     setContextMenu(null);
     try {
-      await recallMessage.mutateAsync({
-        messageId: msg.id,
-        conversationId,
-        senderId: user.id,
-        createdAt: msg.created_at,
-      });
+      await recallMessage.mutateAsync({ messageId: msg.id, conversationId, senderId: user.id, createdAt: msg.created_at });
       toast.success('消息已撤回');
-    } catch (err: any) {
-      toast.error(err.message || '撤回失败');
-    }
+    } catch (err: any) { toast.error(err.message || '撤回失败'); }
   };
 
   const handleDelete = async () => {
@@ -254,15 +266,9 @@ export default function ChatDetail() {
     const msg = contextMenu.msg;
     setContextMenu(null);
     try {
-      await deleteMessage.mutateAsync({
-        messageId: msg.id,
-        conversationId,
-        senderId: user.id,
-      });
+      await deleteMessage.mutateAsync({ messageId: msg.id, conversationId, senderId: user.id });
       toast.success('消息已删除');
-    } catch {
-      toast.error('删除失败');
-    }
+    } catch { toast.error('删除失败'); }
   };
 
   const handleCopy = () => {
@@ -272,7 +278,13 @@ export default function ChatDetail() {
     toast.success('已复制');
   };
 
-  // Determine if a message has been read by the other user
+  const handleReply = () => {
+    if (!contextMenu) return;
+    setReplyTo(contextMenu.msg);
+    setContextMenu(null);
+    inputRef.current?.focus();
+  };
+
   const isMessageRead = useCallback((msg: Message) => {
     if (!isDirectChat || !otherLastRead) return false;
     return new Date(msg.created_at) <= new Date(otherLastRead);
@@ -283,39 +295,26 @@ export default function ChatDetail() {
   const chatName = isDirectChat
     ? (otherProfile?.display_name || otherProfile?.username || '聊天')
     : (conversation?.name || '群聊');
-
-  const chatAvatar = isDirectChat
-    ? otherProfile?.avatar_url
-    : conversation?.avatar_url;
+  const chatAvatar = isDirectChat ? otherProfile?.avatar_url : conversation?.avatar_url;
 
   return (
     <div className="flex h-full flex-col bg-stone-50">
       {/* Header */}
       <header className="safe-area-top flex h-12 shrink-0 items-center gap-2 border-b border-stone-100 bg-white px-3">
-        <button onClick={() => navigate(-1)} className="text-stone-600">
-          <ArrowLeft className="h-5 w-5" />
-        </button>
+        <button onClick={() => navigate(-1)} className="text-stone-600"><ArrowLeft className="h-5 w-5" /></button>
         <UserAvatar src={chatAvatar} name={chatName} size="sm" />
         <h1 className="flex-1 truncate text-base font-semibold text-stone-900">{chatName}</h1>
         {isDirectChat && (
           <>
-            <button onClick={() => handleCall('audio')} className="p-1.5 text-stone-500 hover:text-brand">
-              <Phone className="h-5 w-5" />
-            </button>
-            <button onClick={() => handleCall('video')} className="p-1.5 text-stone-500 hover:text-brand">
-              <Video className="h-5 w-5" />
-            </button>
+            <button onClick={() => handleCall('audio')} className="p-1.5 text-stone-500 hover:text-brand"><Phone className="h-5 w-5" /></button>
+            <button onClick={() => handleCall('video')} className="p-1.5 text-stone-500 hover:text-brand"><Video className="h-5 w-5" /></button>
           </>
         )}
         {!isDirectChat && (
-          <button onClick={() => navigate(`/group/${conversationId}`)} className="p-1.5 text-stone-500 hover:text-stone-700">
-            <MoreVertical className="h-5 w-5" />
-          </button>
+          <button onClick={() => navigate(`/group/${conversationId}`)} className="p-1.5 text-stone-500 hover:text-stone-700"><MoreVertical className="h-5 w-5" /></button>
         )}
         {isDirectChat && (
-          <button onClick={() => navigate(`/profile/${otherUserId}`)} className="p-1.5 text-stone-500 hover:text-stone-700">
-            <MoreVertical className="h-5 w-5" />
-          </button>
+          <button onClick={() => navigate(`/profile/${otherUserId}`)} className="p-1.5 text-stone-500 hover:text-stone-700"><MoreVertical className="h-5 w-5" /></button>
         )}
       </header>
 
@@ -338,12 +337,7 @@ export default function ChatDetail() {
               onContextMenu={(e) => handleMsgContextMenu(e, msg)}
             >
               <div className={cn('flex max-w-[75%] gap-2', isOwn ? 'flex-row-reverse' : 'flex-row')}>
-                <UserAvatar
-                  src={msg.sender?.avatar_url}
-                  name={msg.sender?.display_name}
-                  size="sm"
-                  className="mt-1 shrink-0"
-                />
+                <UserAvatar src={msg.sender?.avatar_url} name={msg.sender?.display_name} size="sm" className="mt-1 shrink-0" />
                 <div>
                   {!isOwn && msg.sender && (
                     <p className="mb-0.5 text-xs text-stone-400">{msg.sender.display_name}</p>
@@ -352,11 +346,14 @@ export default function ChatDetail() {
                     className={cn(
                       'rounded-2xl text-sm leading-relaxed',
                       msg.type === 'image' ? 'overflow-hidden p-0' : 'px-3.5 py-2',
-                      isOwn
-                        ? 'rounded-tr-md bg-brand text-white'
-                        : 'rounded-tl-md bg-white text-stone-800 shadow-sm'
+                      isOwn ? 'rounded-tr-md bg-brand text-white' : 'rounded-tl-md bg-white text-stone-800 shadow-sm'
                     )}
                   >
+                    {/* Quoted message */}
+                    {msg.reply_to && (
+                      <QuotedMessage replyToId={msg.reply_to} messagesMap={messagesMap} isOwn={isOwn} />
+                    )}
+
                     {msg.type === 'image' && msg.media_url ? (
                       <img
                         src={msg.media_url}
@@ -370,23 +367,15 @@ export default function ChatDetail() {
                         href={msg.media_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={cn(
-                          'flex items-center gap-2.5 no-underline',
-                          isOwn ? 'text-white' : 'text-stone-800'
-                        )}
+                        className={cn('flex items-center gap-2.5 no-underline', isOwn ? 'text-white' : 'text-stone-800')}
                       >
-                        <div className={cn(
-                          'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
-                          isOwn ? 'bg-white/20' : 'bg-stone-100'
-                        )}>
+                        <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-lg', isOwn ? 'bg-white/20' : 'bg-stone-100')}>
                           <FileText className="h-5 w-5" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">{msg.file_name || '文件'}</p>
                           {msg.file_size && (
-                            <p className={cn('text-xs', isOwn ? 'text-white/70' : 'text-stone-400')}>
-                              {formatFileSize(msg.file_size)}
-                            </p>
+                            <p className={cn('text-xs', isOwn ? 'text-white/70' : 'text-stone-400')}>{formatFileSize(msg.file_size)}</p>
                           )}
                         </div>
                         <Download className="h-4 w-4 shrink-0 opacity-60" />
@@ -399,11 +388,7 @@ export default function ChatDetail() {
                   <div className={cn('mt-0.5 flex items-center gap-1 text-xs text-stone-300', isOwn ? 'justify-end' : 'justify-start')}>
                     <span>{format(new Date(msg.created_at), 'HH:mm')}</span>
                     {isOwn && isDirectChat && (
-                      isMessageRead(msg) ? (
-                        <CheckCheck className="h-3.5 w-3.5 text-blue-400" />
-                      ) : (
-                        <Check className="h-3.5 w-3.5" />
-                      )
+                      isMessageRead(msg) ? <CheckCheck className="h-3.5 w-3.5 text-blue-400" /> : <Check className="h-3.5 w-3.5" />
                     )}
                   </div>
                 </div>
@@ -424,42 +409,42 @@ export default function ChatDetail() {
           onRecall={handleRecall}
           onDelete={handleDelete}
           onCopy={handleCopy}
+          onReply={handleReply}
         />
+      )}
+
+      {/* Reply preview bar */}
+      {replyTo && (
+        <div className="flex items-center gap-2 border-t border-stone-100 bg-stone-50 px-4 py-2">
+          <Reply className="h-4 w-4 shrink-0 text-brand" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-brand">
+              回复 {replyTo.sender?.display_name || replyTo.sender?.username || ''}
+            </p>
+            <p className="truncate text-xs text-stone-400">
+              {getMessagePreviewText(replyTo)}
+            </p>
+          </div>
+          <button onClick={() => setReplyTo(null)} className="shrink-0 p-1 text-stone-400 hover:text-stone-600">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       )}
 
       {/* Input bar */}
       <div className="safe-area-bottom shrink-0 border-t border-stone-100 bg-white px-3 py-2">
         <div className="flex items-end gap-2">
-          <input
-            ref={imageInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleImageSelect}
-          />
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="*/*"
-            className="hidden"
-            onChange={handleFileSelect}
-          />
-          <button
-            onClick={() => imageInputRef.current?.click()}
-            disabled={uploading}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 disabled:opacity-50"
-          >
+          <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
+          <input ref={fileInputRef} type="file" accept="*/*" className="hidden" onChange={handleFileSelect} />
+          <button onClick={() => imageInputRef.current?.click()} disabled={uploading} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 disabled:opacity-50">
             <Image className="h-5 w-5" />
           </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 disabled:opacity-50"
-          >
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 disabled:opacity-50">
             <Paperclip className="h-5 w-5" />
           </button>
           <div className="flex-1">
             <textarea
+              ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -473,12 +458,7 @@ export default function ChatDetail() {
               <Loader2 className="h-5 w-5 animate-spin text-brand" />
             </div>
           ) : (
-            <Button
-              size="icon"
-              className="h-10 w-10 shrink-0 rounded-full"
-              onClick={handleSend}
-              disabled={!input.trim()}
-            >
+            <Button size="icon" className="h-10 w-10 shrink-0 rounded-full" onClick={handleSend} disabled={!input.trim()}>
               <Send className="h-5 w-5" />
             </Button>
           )}
@@ -487,22 +467,11 @@ export default function ChatDetail() {
 
       {/* Image preview modal */}
       {previewFile && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
-          onClick={() => setPreviewFile(null)}
-        >
-          <button
-            className="absolute right-4 top-4 rounded-full bg-black/50 p-2 text-white"
-            onClick={() => setPreviewFile(null)}
-          >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" onClick={() => setPreviewFile(null)}>
+          <button className="absolute right-4 top-4 rounded-full bg-black/50 p-2 text-white" onClick={() => setPreviewFile(null)}>
             <X className="h-6 w-6" />
           </button>
-          <img
-            src={previewFile.url}
-            alt={previewFile.name}
-            className="max-h-[90vh] max-w-[90vw] object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
+          <img src={previewFile.url} alt={previewFile.name} className="max-h-[90vh] max-w-[90vw] object-contain" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
     </div>
