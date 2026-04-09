@@ -89,6 +89,13 @@ export function useConversations(userId?: string) {
         result.push(c);
       }
 
+      // Sort: pinned first, then by updated_at desc
+      result.sort((a, b) => {
+        if (a.is_pinned && !b.is_pinned) return -1;
+        if (!a.is_pinned && b.is_pinned) return 1;
+        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+      });
+
       return result;
     },
     enabled: !!userId,
