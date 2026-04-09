@@ -1,13 +1,28 @@
 import { useNavigate } from 'react-router-dom';
-import { MessageCircle, Plus, Search } from 'lucide-react';
+import { MessageCircle, Plus, Search, Image, FileText, Phone } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useConversations } from '@/hooks/useConversations';
 import { UserAvatar } from '@/components/avatar/UserAvatar';
 import { EmptyState } from '@/components/common/EmptyState';
 import { FullPageLoading } from '@/components/common/LoadingSpinner';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
+import type { Message } from '@/types';
+
+function messagePreview(msg?: Message): { icon?: React.ReactNode; text: string } {
+  if (!msg) return { text: '暂无消息' };
+  if (msg.is_deleted) return { text: '[消息已撤回]' };
+  switch (msg.type) {
+    case 'image': return { icon: <Image className="h-3 w-3 shrink-0" />, text: '图片' };
+    case 'file': return { icon: <FileText className="h-3 w-3 shrink-0" />, text: msg.file_name || '文件' };
+    case 'audio': return { icon: <Phone className="h-3 w-3 shrink-0" />, text: '语音消息' };
+    case 'video': return { icon: <Phone className="h-3 w-3 shrink-0" />, text: '视频消息' };
+    case 'system': return { text: msg.content || '系统消息' };
+    default: return { text: msg.content || '' };
+  }
+}
 
 export default function Conversations() {
   const { user } = useAuth();
@@ -50,6 +65,8 @@ export default function Conversations() {
               const displayAvatar = conv.type === 'direct'
                 ? conv.other_user?.avatar_url
                 : conv.avatar_url;
+              const unread = conv.unread_count ?? 0;
+              const preview = messagePreview(conv.last_message);
 
               return (
                 <button
@@ -57,31 +74,36 @@ export default function Conversations() {
                   onClick={() => navigate(`/chat/${conv.id}`)}
                   className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-stone-50 active:bg-stone-100"
                 >
-                  <UserAvatar
-                    src={displayAvatar}
-                    name={displayName}
-                    size="lg"
-                  />
+                  <div className="relative shrink-0">
+                    <UserAvatar src={displayAvatar} name={displayName} size="lg" />
+                    {unread > 0 && (
+                      <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white shadow-sm">
+                        {unread > 99 ? '99+' : unread}
+                      </span>
+                    )}
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between">
-                      <span className="truncate text-sm font-medium text-stone-900">
+                      <span className={cn(
+                        'truncate text-sm text-stone-900',
+                        unread > 0 ? 'font-semibold' : 'font-medium'
+                      )}>
                         {displayName}
                       </span>
                       {conv.last_message && (
-                        <span className="ml-2 shrink-0 text-xs text-stone-400">
+                        <span className="ml-2 shrink-0 text-[11px] text-stone-400">
                           {formatDistanceToNow(new Date(conv.last_message.created_at), { addSuffix: true, locale: zhCN })}
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 truncate text-xs text-stone-400">
-                      {conv.last_message?.content || '暂无消息'}
-                    </p>
+                    <div className={cn(
+                      'mt-0.5 flex items-center gap-1 truncate text-xs',
+                      unread > 0 ? 'text-stone-600' : 'text-stone-400'
+                    )}>
+                      {preview.icon}
+                      <span className="truncate">{preview.text}</span>
+                    </div>
                   </div>
-                  {(conv.unread_count ?? 0) > 0 && (
-                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-medium text-white">
-                      {conv.unread_count}
-                    </span>
-                  )}
                 </button>
               );
             })}
