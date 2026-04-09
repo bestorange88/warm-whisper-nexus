@@ -14,6 +14,17 @@ export interface Profile {
   updated_at: string;
 }
 
+/** Public profile view — excludes sensitive PII (email, phone) */
+export interface PublicProfile {
+  id: string;
+  username: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  bio: string;
+  status: 'online' | 'offline' | 'busy' | 'away';
+  last_seen: string;
+}
+
 export interface Conversation {
   id: string;
   type: 'direct' | 'group';
