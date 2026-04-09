@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical, X, FileText, Download, Loader2, Check, CheckCheck, Copy, Trash2, Undo2, Reply } from 'lucide-react';
+import { VoiceRecorder } from '@/components/chat/VoiceRecorder';
+import { VoicePlayer } from '@/components/chat/VoicePlayer';
 import { useAuth } from '@/hooks/useAuth';
 import { useMessages, useSendMessage, useConversation, useRecallMessage, useDeleteMessage, useReadReceipt } from '@/hooks/useConversations';
 import { useProfile } from '@/hooks/useProfile';
@@ -234,6 +236,31 @@ export default function ChatDetail() {
     }
   }, [user, conversationId, sendMessage, t]);
 
+  const handleVoiceSend = useCallback(async (blob: Blob, durationSec: number) => {
+    if (!user || !conversationId) return;
+    setUploading(true);
+    try {
+      const ext = 'webm';
+      const path = `${user.id}/${conversationId}/${Date.now()}_voice.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, blob, { contentType: blob.type });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('chat-media').getPublicUrl(path);
+      await sendMessage.mutateAsync({
+        conversation_id: conversationId,
+        sender_id: user.id,
+        type: 'audio',
+        content: `[${t('chat.voiceMessage')}]`,
+        media_url: urlData.publicUrl,
+        file_size: durationSec, // store duration in file_size for audio
+      });
+    } catch (err) {
+      console.error('Voice upload failed:', err);
+      toast.error(t('chat.uploadFailed'));
+    } finally {
+      setUploading(false);
+    }
+  }, [user, conversationId, sendMessage, t]);
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) uploadFile(file, 'image');
@@ -381,6 +408,12 @@ export default function ChatDetail() {
                         </div>
                         <Download className="h-4 w-4 shrink-0 opacity-60" />
                       </a>
+                    ) : msg.type === 'audio' && msg.media_url ? (
+                      <VoicePlayer
+                        src={msg.media_url}
+                        duration={msg.file_size || undefined}
+                        isOwn={isOwn}
+                      />
                     ) : (
                       <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                     )}
@@ -454,10 +487,12 @@ export default function ChatDetail() {
             <div className="flex h-10 w-10 shrink-0 items-center justify-center">
               <Loader2 className="h-5 w-5 animate-spin text-brand" />
             </div>
-          ) : (
-            <Button size="icon" className="h-10 w-10 shrink-0 rounded-full" onClick={handleSend} disabled={!input.trim()}>
+          ) : input.trim() ? (
+            <Button size="icon" className="h-10 w-10 shrink-0 rounded-full" onClick={handleSend}>
               <Send className="h-5 w-5" />
             </Button>
+          ) : (
+            <VoiceRecorder onSend={handleVoiceSend} disabled={uploading} />
           )}
         </div>
       </div>

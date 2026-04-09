@@ -98,7 +98,11 @@
     "deleteFailed2": "Delete failed",
     "sent": "Sent",
     "read": "Read",
-    "unnamed": "Unnamed"
+    "unnamed": "Unnamed",
+    "voiceMessage": "Voice message",
+    "recording": "Recording...",
+    "holdToRecord": "Record voice message",
+    "micPermissionDenied": "Microphone access denied. Please allow in browser settings."
   },
   "contacts": {
     "friendRequests": "Friend Requests",

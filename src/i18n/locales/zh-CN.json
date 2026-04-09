@@ -98,7 +98,11 @@
     "deleteFailed2": "删除失败",
     "sent": "已发送",
     "read": "已读",
-    "unnamed": "未命名"
+    "unnamed": "未命名",
+    "voiceMessage": "语音消息",
+    "recording": "录音中...",
+    "holdToRecord": "录制语音消息",
+    "micPermissionDenied": "麦克风权限被拒绝，请在浏览器设置中允许"
   },
   "contacts": {
     "friendRequests": "好友请求",
