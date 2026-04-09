@@ -135,7 +135,7 @@ export function useConversation(conversationId?: string) {
 export function useMessages(conversationId?: string) {
   const queryClient = useQueryClient();
 
-  // Subscribe to realtime messages
+  // Subscribe to realtime messages (INSERT + UPDATE for recalls)
   useEffect(() => {
     if (!conversationId) return;
 
@@ -144,7 +144,7 @@ export function useMessages(conversationId?: string) {
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'messages',
           filter: `conversation_id=eq.${conversationId}`,
