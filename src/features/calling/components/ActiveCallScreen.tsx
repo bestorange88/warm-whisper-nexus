@@ -1,25 +1,89 @@
 import { useEffect, useState, useRef } from 'react';
+import {
+  useVideo,
+  useHMSStore,
+} from '@100mslive/react-sdk';
+import {
+  selectCameraStreamByPeerID,
+} from '@100mslive/hms-video-store';
 import { useCallContext } from '../CallProvider';
+import { useHmsCall } from '../hooks/useHmsCall';
 import { UserAvatar } from '@/components/avatar/UserAvatar';
 import { formatDuration } from '../utils';
 import {
-  Mic, MicOff, Video, VideoOff, PhoneOff,
-  SwitchCamera, Volume2,
+  Mic, MicOff, Video, VideoOff, PhoneOff, Volume2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+/** Renders a single video tile for a peer */
+function PeerVideo({ peerId, isLocal, mirror }: { peerId: string; isLocal?: boolean; mirror?: boolean }) {
+  const trackId = useHMSStore(selectCameraStreamByPeerID(peerId))?.id;
+  const { videoRef } = useVideo({ trackId });
+  return (
+    <video
+      ref={videoRef}
+      autoPlay
+      muted={isLocal}
+      playsInline
+      className={cn(
+        'h-full w-full object-cover',
+        mirror && 'scale-x-[-1]'
+      )}
+    />
+  );
+}
+
 export function ActiveCallScreen() {
+  const ctx = useCallContext();
   const {
     callState, activeCall, endReason, duration,
     cancelCall, endCall,
-  } = useCallContext();
-  const [isMuted, setIsMuted] = useState(false);
-  const [isCameraOff, setIsCameraOff] = useState(false);
+  } = ctx;
+
+  // Access onHmsConnected from context
+  const onHmsConnected = (ctx as any).onHmsConnected;
+
+  const {
+    join, leave, isConnected,
+    localPeer, remotePeers,
+    isAudioEnabled, isVideoEnabled,
+    toggleAudio, toggleVideo,
+  } = useHmsCall();
+
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval>>();
   const connectedAtRef = useRef<number>();
+  const hasJoinedRef = useRef(false);
 
   const shouldShow = ['dialing', 'connecting', 'connected', 'reconnecting', 'ended', 'failed'].includes(callState);
+
+  // Join 100ms room when we have a token
+  useEffect(() => {
+    if (!activeCall?.hmsToken || hasJoinedRef.current) return;
+    if (callState !== 'connecting' && callState !== 'dialing') return;
+
+    hasJoinedRef.current = true;
+    const userName = activeCall.callerName || activeCall.calleeName || 'User';
+    join(activeCall.hmsToken, userName).catch((err) => {
+      console.error('Failed to join HMS room:', err);
+      hasJoinedRef.current = false;
+    });
+  }, [callState, activeCall?.hmsToken, join, activeCall?.callerName, activeCall?.calleeName]);
+
+  // Detect when 100ms connects → dispatch CONNECTED
+  useEffect(() => {
+    if (isConnected && (callState === 'connecting' || callState === 'dialing')) {
+      onHmsConnected?.();
+    }
+  }, [isConnected, callState, onHmsConnected]);
+
+  // Leave room when call ends
+  useEffect(() => {
+    if ((callState === 'ended' || callState === 'failed') && hasJoinedRef.current) {
+      leave();
+      hasJoinedRef.current = false;
+    }
+  }, [callState, leave]);
 
   // Timer for connected state
   useEffect(() => {
@@ -41,12 +105,23 @@ export function ActiveCallScreen() {
     };
   }, [callState]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (hasJoinedRef.current) {
+        leave();
+        hasJoinedRef.current = false;
+      }
+    };
+  }, [leave]);
+
   if (!shouldShow || !activeCall) return null;
 
   const isVideo = activeCall.callType === 'video';
   const isCaller = !!activeCall.calleeName;
   const remoteName = isCaller ? activeCall.calleeName : activeCall.callerName;
   const remoteAvatar = isCaller ? activeCall.calleeAvatar : activeCall.callerAvatar;
+  const remotePeer = remotePeers[0];
 
   const getStatusText = () => {
     switch (callState) {
@@ -75,26 +150,20 @@ export function ActiveCallScreen() {
     }
   };
 
-  const toggleMute = () => setIsMuted(!isMuted);
-  const toggleCamera = () => setIsCameraOff(!isCameraOff);
-
   const isActive = ['dialing', 'connecting', 'connected', 'reconnecting'].includes(callState);
   const isEnded = callState === 'ended' || callState === 'failed';
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-[#1a1a2e] to-[#16213e]">
-      {/* Safe area top */}
       <div className="safe-area-top" />
 
-      {/* Remote video placeholder / Audio call display */}
+      {/* Main content area */}
       <div className="flex flex-1 flex-col items-center justify-center">
-        {isVideo && callState === 'connected' ? (
-          // Video call - remote video would go here
-          <div className="flex h-full w-full items-center justify-center">
-            <p className="text-sm text-white/50">视频连接中...</p>
+        {isVideo && callState === 'connected' && remotePeer ? (
+          <div className="absolute inset-0">
+            <PeerVideo peerId={remotePeer.id} />
           </div>
         ) : (
-          // Audio call or waiting states
           <div className="flex flex-col items-center">
             <div className="relative mb-6">
               {callState === 'dialing' && (
@@ -117,58 +186,55 @@ export function ActiveCallScreen() {
             </p>
           </div>
         )}
+
+        {/* Overlay name/status when remote video is showing */}
+        {isVideo && callState === 'connected' && remotePeer && (
+          <div className="absolute left-0 right-0 top-16 z-10 text-center">
+            <h2 className="text-lg font-semibold text-white drop-shadow-lg">
+              {remoteName || '未知用户'}
+            </h2>
+            <p className="text-sm text-green-400 drop-shadow-lg">{getStatusText()}</p>
+          </div>
+        )}
       </div>
 
-      {/* Local video preview (video calls only) */}
-      {isVideo && callState === 'connected' && !isCameraOff && (
-        <div className="absolute right-4 top-16 h-40 w-28 overflow-hidden rounded-xl bg-stone-800 shadow-lg">
-          <div className="flex h-full items-center justify-center">
-            <p className="text-xs text-white/50">本地预览</p>
-          </div>
+      {/* Local video preview */}
+      {isVideo && callState === 'connected' && isVideoEnabled && localPeer && (
+        <div className="absolute right-4 top-16 z-20 h-40 w-28 overflow-hidden rounded-xl bg-stone-800 shadow-lg">
+          <PeerVideo peerId={localPeer.id} isLocal mirror />
         </div>
       )}
 
       {/* Control buttons */}
       {isActive && (
-        <div className="safe-area-bottom pb-10">
+        <div className="safe-area-bottom relative z-30 pb-10">
           <div className="flex items-center justify-center gap-6">
-            {/* Mute */}
             <button
-              onClick={toggleMute}
+              onClick={toggleAudio}
               className={cn(
                 'flex h-14 w-14 items-center justify-center rounded-full transition-all',
-                isMuted ? 'bg-white text-stone-900' : 'bg-white/20 text-white'
+                !isAudioEnabled ? 'bg-white text-stone-900' : 'bg-white/20 text-white'
               )}
             >
-              {isMuted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
+              {!isAudioEnabled ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
             </button>
 
-            {/* Camera toggle (video only) */}
             {isVideo && (
               <button
-                onClick={toggleCamera}
+                onClick={toggleVideo}
                 className={cn(
                   'flex h-14 w-14 items-center justify-center rounded-full transition-all',
-                  isCameraOff ? 'bg-white text-stone-900' : 'bg-white/20 text-white'
+                  !isVideoEnabled ? 'bg-white text-stone-900' : 'bg-white/20 text-white'
                 )}
               >
-                {isCameraOff ? <VideoOff className="h-6 w-6" /> : <Video className="h-6 w-6" />}
+                {!isVideoEnabled ? <VideoOff className="h-6 w-6" /> : <Video className="h-6 w-6" />}
               </button>
             )}
 
-            {/* Switch camera (video only) */}
-            {isVideo && (
-              <button className="flex h-14 w-14 items-center justify-center rounded-full bg-white/20 text-white">
-                <SwitchCamera className="h-6 w-6" />
-              </button>
-            )}
-
-            {/* Speaker */}
             <button className="flex h-14 w-14 items-center justify-center rounded-full bg-white/20 text-white">
               <Volume2 className="h-6 w-6" />
             </button>
 
-            {/* Hangup */}
             <button
               onClick={handleHangup}
               className="flex h-16 w-16 items-center justify-center rounded-full bg-red-500 text-white shadow-lg transition-transform active:scale-95"
