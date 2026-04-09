@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical, X, FileText, Download, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical, X, FileText, Download, Loader2, Check, CheckCheck, Copy, Trash2, Undo2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useMessages, useSendMessage, useConversation } from '@/hooks/useConversations';
+import { useMessages, useSendMessage, useConversation, useRecallMessage, useDeleteMessage, useReadReceipt } from '@/hooks/useConversations';
 import { useProfile } from '@/hooks/useProfile';
 import { useCallContext } from '@/features/calling/CallProvider';
 import { CallMessageRenderer } from '@/features/calling/components/CallMessageRenderer';
@@ -16,13 +16,62 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Message } from '@/types';
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const RECALL_WINDOW_MS = 2 * 60 * 1000;
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+interface MessageMenuProps {
+  msg: Message;
+  isOwn: boolean;
+  position: { x: number; y: number };
+  onClose: () => void;
+  onRecall: () => void;
+  onDelete: () => void;
+  onCopy: () => void;
+}
+
+function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete, onCopy }: MessageMenuProps) {
+  const canRecall = isOwn && Date.now() - new Date(msg.created_at).getTime() < RECALL_WINDOW_MS;
+
+  useEffect(() => {
+    const handler = () => onClose();
+    document.addEventListener('click', handler);
+    document.addEventListener('scroll', handler, true);
+    return () => {
+      document.removeEventListener('click', handler);
+      document.removeEventListener('scroll', handler, true);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed z-50 rounded-xl border border-border bg-background shadow-lg py-1 min-w-[120px] animate-in fade-in zoom-in-95"
+      style={{ top: position.y, left: position.x, transform: 'translate(-50%, -100%)' }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {msg.type === 'text' && msg.content && (
+        <button onClick={onCopy} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
+          <Copy className="h-4 w-4" /> 复制
+        </button>
+      )}
+      {canRecall && (
+        <button onClick={onRecall} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
+          <Undo2 className="h-4 w-4" /> 撤回
+        </button>
+      )}
+      {isOwn && (
+        <button onClick={onDelete} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-destructive hover:bg-muted">
+          <Trash2 className="h-4 w-4" /> 删除
+        </button>
+      )}
+    </div>
+  );
 }
 
 export default function ChatDetail() {
@@ -31,11 +80,14 @@ export default function ChatDetail() {
   const { data: conversation } = useConversation(conversationId);
   const { data: messages, isLoading } = useMessages(conversationId);
   const sendMessage = useSendMessage();
+  const recallMessage = useRecallMessage();
+  const deleteMessage = useDeleteMessage();
   const { initiateCall } = useCallContext();
   const [input, setInput] = useState('');
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ msg: Message; x: number; y: number } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,6 +107,13 @@ export default function ChatDetail() {
   }, [conversationId, user, conversation?.type]);
 
   const { data: otherProfile } = useProfile(conversation?.type === 'direct' ? otherUserId ?? undefined : undefined);
+
+  // Read receipt: other user's last_read_at
+  const isDirectChat = conversation?.type === 'direct';
+  const { data: otherLastRead } = useReadReceipt(
+    isDirectChat ? conversationId : undefined,
+    isDirectChat ? otherUserId : undefined
+  );
 
   // Mark messages as read
   useEffect(() => {
@@ -154,9 +213,73 @@ export default function ChatDetail() {
     e.target.value = '';
   };
 
+  // Long press / context menu for messages
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMsgTouchStart = (e: React.TouchEvent, msg: Message) => {
+    const touch = e.touches[0];
+    longPressTimer.current = setTimeout(() => {
+      setContextMenu({ msg, x: touch.clientX, y: touch.clientY - 10 });
+    }, 500);
+  };
+
+  const handleMsgTouchEnd = () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+  };
+
+  const handleMsgContextMenu = (e: React.MouseEvent, msg: Message) => {
+    e.preventDefault();
+    setContextMenu({ msg, x: e.clientX, y: e.clientY - 10 });
+  };
+
+  const handleRecall = async () => {
+    if (!contextMenu || !user || !conversationId) return;
+    const msg = contextMenu.msg;
+    setContextMenu(null);
+    try {
+      await recallMessage.mutateAsync({
+        messageId: msg.id,
+        conversationId,
+        senderId: user.id,
+        createdAt: msg.created_at,
+      });
+      toast.success('消息已撤回');
+    } catch (err: any) {
+      toast.error(err.message || '撤回失败');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!contextMenu || !user || !conversationId) return;
+    const msg = contextMenu.msg;
+    setContextMenu(null);
+    try {
+      await deleteMessage.mutateAsync({
+        messageId: msg.id,
+        conversationId,
+        senderId: user.id,
+      });
+      toast.success('消息已删除');
+    } catch {
+      toast.error('删除失败');
+    }
+  };
+
+  const handleCopy = () => {
+    if (!contextMenu?.msg.content) return;
+    navigator.clipboard.writeText(contextMenu.msg.content);
+    setContextMenu(null);
+    toast.success('已复制');
+  };
+
+  // Determine if a message has been read by the other user
+  const isMessageRead = useCallback((msg: Message) => {
+    if (!isDirectChat || !otherLastRead) return false;
+    return new Date(msg.created_at) <= new Date(otherLastRead);
+  }, [isDirectChat, otherLastRead]);
+
   if (isLoading) return <FullPageLoading />;
 
-  const isDirectChat = conversation?.type === 'direct';
   const chatName = isDirectChat
     ? (otherProfile?.display_name || otherProfile?.username || '聊天')
     : (conversation?.name || '群聊');
@@ -206,7 +329,14 @@ export default function ChatDetail() {
           }
 
           return (
-            <div key={msg.id} className={cn('mb-3 flex', isOwn ? 'justify-end' : 'justify-start')}>
+            <div
+              key={msg.id}
+              className={cn('mb-3 flex', isOwn ? 'justify-end' : 'justify-start')}
+              onTouchStart={(e) => handleMsgTouchStart(e, msg)}
+              onTouchEnd={handleMsgTouchEnd}
+              onTouchMove={handleMsgTouchEnd}
+              onContextMenu={(e) => handleMsgContextMenu(e, msg)}
+            >
               <div className={cn('flex max-w-[75%] gap-2', isOwn ? 'flex-row-reverse' : 'flex-row')}>
                 <UserAvatar
                   src={msg.sender?.avatar_url}
@@ -265,9 +395,17 @@ export default function ChatDetail() {
                       <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                     )}
                   </div>
-                  <p className={cn('mt-0.5 text-xs text-stone-300', isOwn ? 'text-right' : 'text-left')}>
-                    {format(new Date(msg.created_at), 'HH:mm')}
-                  </p>
+                  {/* Time + read receipt */}
+                  <div className={cn('mt-0.5 flex items-center gap-1 text-xs text-stone-300', isOwn ? 'justify-end' : 'justify-start')}>
+                    <span>{format(new Date(msg.created_at), 'HH:mm')}</span>
+                    {isOwn && isDirectChat && (
+                      isMessageRead(msg) ? (
+                        <CheckCheck className="h-3.5 w-3.5 text-blue-400" />
+                      ) : (
+                        <Check className="h-3.5 w-3.5" />
+                      )
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -275,6 +413,19 @@ export default function ChatDetail() {
         })}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Context menu */}
+      {contextMenu && (
+        <MessageContextMenu
+          msg={contextMenu.msg}
+          isOwn={contextMenu.msg.sender_id === user?.id}
+          position={{ x: contextMenu.x, y: contextMenu.y }}
+          onClose={() => setContextMenu(null)}
+          onRecall={handleRecall}
+          onDelete={handleDelete}
+          onCopy={handleCopy}
+        />
+      )}
 
       {/* Input bar */}
       <div className="safe-area-bottom shrink-0 border-t border-stone-100 bg-white px-3 py-2">
