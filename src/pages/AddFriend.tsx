@@ -8,8 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/common/EmptyState';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { useTranslation } from 'react-i18next';
 
 export default function AddFriend() {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const { user } = useAuth();
@@ -30,20 +32,20 @@ export default function AddFriend() {
 
   return (
     <div className="flex h-full flex-col bg-white">
-      <PageHeader title="添加好友" />
+      <PageHeader title={t('contacts.addFriend')} />
       <div className="px-4 py-2">
         <div className="relative">
           <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜索用户名..." className="pl-9" autoFocus />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('contacts.searchPlaceholder')} className="pl-9" autoFocus />
         </div>
       </div>
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (
           <LoadingSpinner className="mt-8" />
         ) : query.length < 2 ? (
-          <EmptyState icon={<UserPlus className="h-16 w-16" />} title="搜索用户" description="输入用户名或昵称添加好友" />
+          <EmptyState icon={<UserPlus className="h-16 w-16" />} title={t('contacts.searchUsers')} description={t('contacts.searchUsersDesc')} />
         ) : filteredResults.length === 0 ? (
-          <EmptyState icon={<SearchIcon className="h-16 w-16" />} title="未找到用户" />
+          <EmptyState icon={<SearchIcon className="h-16 w-16" />} title={t('contacts.noResults')} />
         ) : (
           <div className="divide-y divide-stone-50">
             {filteredResults.map((u) => (
@@ -54,9 +56,9 @@ export default function AddFriend() {
                   <p className="truncate text-xs text-stone-400">@{u.username}</p>
                 </div>
                 {sentIds.has(u.id) ? (
-                  <span className="text-xs text-stone-400">已发送</span>
+                  <span className="text-xs text-stone-400">{t('contacts.requestSent')}</span>
                 ) : (
-                  <Button size="sm" onClick={() => handleSendRequest(u.id)}>添加</Button>
+                  <Button size="sm" onClick={() => handleSendRequest(u.id)}>{t('contacts.add')}</Button>
                 )}
               </div>
             ))}

@@ -9,8 +9,10 @@ import { Button } from '@/components/ui/button';
 import { FullPageLoading } from '@/components/common/LoadingSpinner';
 import { MessageCircle, Flag, Ban } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export default function UserProfile() {
+  const { t } = useTranslation();
   const { userId } = useParams<{ userId: string }>();
   const { user } = useAuth();
   const { data: profile, isLoading } = useProfile(userId);
@@ -37,20 +39,20 @@ export default function UserProfile() {
 
   const handleBlock = async () => {
     if (!user || !userId) return;
-    if (confirm('确定要拉黑该用户吗？拉黑后将无法互相发送消息。')) {
+    if (confirm(t('contacts.blockConfirm'))) {
       await blockUser.mutateAsync({ blocker_id: user.id, blocked_id: userId });
       navigate(-1);
     }
   };
 
   if (isLoading) return <FullPageLoading />;
-  if (!profile) return <div className="p-4 text-center text-stone-400">用户不存在</div>;
+  if (!profile) return <div className="p-4 text-center text-stone-400">{t('contacts.userNotFound')}</div>;
 
   const isOwnProfile = user?.id === userId;
 
   return (
     <div className="flex h-full flex-col bg-white">
-      <PageHeader title="用户资料" />
+      <PageHeader title={t('profile.userProfile')} />
       <div className="flex-1 overflow-y-auto">
         <div className="flex flex-col items-center px-6 py-8">
           <UserAvatar src={profile.avatar_url} name={profile.display_name || profile.username} size="xl" />
@@ -63,17 +65,17 @@ export default function UserProfile() {
           <div className="space-y-3 px-4">
             <Button className="w-full gap-2" onClick={handleStartChat}>
               <MessageCircle className="h-4 w-4" />
-              发送消息
+              {t('contacts.sendMessage')}
             </Button>
             <Button variant="outline" className="w-full gap-2" onClick={handleAddFriend} disabled={requestSent}>
-              {requestSent ? '已发送请求' : '添加好友'}
+              {requestSent ? t('contacts.requestSentAlready') : t('contacts.addFriendBtn')}
             </Button>
             <div className="flex gap-3 pt-2">
               <Button variant="ghost" size="sm" className="flex-1 gap-1 text-stone-500" onClick={() => navigate(`/report/user/${userId}`)}>
-                <Flag className="h-4 w-4" /> 举报
+                <Flag className="h-4 w-4" /> {t('contacts.report')}
               </Button>
               <Button variant="ghost" size="sm" className="flex-1 gap-1 text-red-500" onClick={handleBlock}>
-                <Ban className="h-4 w-4" /> 拉黑
+                <Ban className="h-4 w-4" /> {t('contacts.block')}
               </Button>
             </div>
           </div>
