@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
-import { UserPlus, Users, Bell } from 'lucide-react';
+import { UserPlus, Users, Bell, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFriends, useFriendRequests } from '@/hooks/useContacts';
+import { useFindOrCreateDirectChat } from '@/hooks/useConversations';
 import { UserAvatar } from '@/components/avatar/UserAvatar';
 import { EmptyState } from '@/components/common/EmptyState';
 import { FullPageLoading } from '@/components/common/LoadingSpinner';
@@ -12,17 +13,31 @@ export default function Contacts() {
   const { user } = useAuth();
   const { data: friends, isLoading } = useFriends(user?.id);
   const { data: requests } = useFriendRequests(user?.id);
+  const findOrCreateChat = useFindOrCreateDirectChat();
   const navigate = useNavigate();
 
-  if (isLoading) return <FullPageLoading />;
-
   const pendingCount = requests?.length ?? 0;
+
+  const handleStartChat = async (friendId: string) => {
+    if (!user) return;
+    try {
+      const conv = await findOrCreateChat.mutateAsync({
+        currentUserId: user.id,
+        otherUserId: friendId,
+      });
+      navigate(`/chat/${conv.id}`);
+    } catch (err) {
+      console.error('Failed to start chat:', err);
+    }
+  };
+
+  if (isLoading) return <FullPageLoading />;
 
   return (
     <div className="flex h-full flex-col">
       <div className="space-y-1 px-4 py-2">
         <button
-          onClick={() => navigate('/contacts/requests')}
+          onClick={() => navigate('/friend-requests')}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-stone-50"
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-light">
@@ -32,7 +47,7 @@ export default function Contacts() {
           {pendingCount > 0 && <Badge variant="destructive">{pendingCount}</Badge>}
         </button>
         <button
-          onClick={() => navigate('/groups/create')}
+          onClick={() => navigate('/create-group')}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-stone-50"
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-light">
@@ -41,7 +56,7 @@ export default function Contacts() {
           <span className="flex-1 text-sm font-medium text-stone-700">创建群聊</span>
         </button>
         <button
-          onClick={() => navigate('/contacts/add')}
+          onClick={() => navigate('/add-friend')}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-stone-50"
         >
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-light">
@@ -67,22 +82,32 @@ export default function Contacts() {
         ) : (
           <div className="divide-y divide-stone-50">
             {friends.map((friendship) => (
-              <button
+              <div
                 key={friendship.id}
-                onClick={() => navigate(`/profile/${friendship.friend_id}`)}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-stone-50"
+                className="flex w-full items-center gap-3 px-4 py-3"
               >
-                <UserAvatar
-                  src={friendship.friend?.avatar_url}
-                  name={friendship.friend?.display_name}
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-stone-900">
-                    {friendship.friend?.display_name || friendship.friend?.username}
-                  </p>
-                  <p className="truncate text-xs text-stone-400">{friendship.friend?.bio || ''}</p>
-                </div>
-              </button>
+                <button
+                  onClick={() => navigate(`/profile/${friendship.friend_id}`)}
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                >
+                  <UserAvatar
+                    src={friendship.friend?.avatar_url}
+                    name={friendship.friend?.display_name}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-stone-900">
+                      {friendship.friend?.display_name || friendship.friend?.username}
+                    </p>
+                    <p className="truncate text-xs text-stone-400">{friendship.friend?.bio || ''}</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => handleStartChat(friendship.friend_id)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 hover:text-brand"
+                >
+                  <MessageCircle className="h-5 w-5" />
+                </button>
+              </div>
             ))}
           </div>
         )}

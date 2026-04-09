@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useSendFriendRequest, useBlockUser } from '@/hooks/useContacts';
+import { useFindOrCreateDirectChat } from '@/hooks/useConversations';
 import { UserAvatar } from '@/components/avatar/UserAvatar';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ export default function UserProfile() {
   const { data: profile, isLoading } = useProfile(userId);
   const sendRequest = useSendFriendRequest();
   const blockUser = useBlockUser();
+  const findOrCreateChat = useFindOrCreateDirectChat();
   const navigate = useNavigate();
   const [requestSent, setRequestSent] = useState(false);
 
@@ -22,6 +24,15 @@ export default function UserProfile() {
     if (!user || !userId) return;
     await sendRequest.mutateAsync({ sender_id: user.id, receiver_id: userId });
     setRequestSent(true);
+  };
+
+  const handleStartChat = async () => {
+    if (!user || !userId) return;
+    const conv = await findOrCreateChat.mutateAsync({
+      currentUserId: user.id,
+      otherUserId: userId,
+    });
+    navigate(`/chat/${conv.id}`);
   };
 
   const handleBlock = async () => {
@@ -50,7 +61,7 @@ export default function UserProfile() {
 
         {!isOwnProfile && (
           <div className="space-y-3 px-4">
-            <Button className="w-full gap-2" onClick={() => navigate(`/chat/new?userId=${userId}`)}>
+            <Button className="w-full gap-2" onClick={handleStartChat}>
               <MessageCircle className="h-4 w-4" />
               发送消息
             </Button>

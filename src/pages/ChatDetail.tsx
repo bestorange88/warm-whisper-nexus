@@ -3,11 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMessages, useSendMessage, useConversation } from '@/hooks/useConversations';
+import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/avatar/UserAvatar';
 import { FullPageLoading } from '@/components/common/LoadingSpinner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 import type { Message } from '@/types';
 
 export default function ChatDetail() {
@@ -17,8 +19,35 @@ export default function ChatDetail() {
   const { data: messages, isLoading } = useMessages(conversationId);
   const sendMessage = useSendMessage();
   const [input, setInput] = useState('');
+  const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+
+  // Get other user id for direct chats
+  useEffect(() => {
+    if (!conversationId || !user || conversation?.type !== 'direct') return;
+    supabase
+      .from('conversation_members')
+      .select('user_id')
+      .eq('conversation_id', conversationId)
+      .then(({ data }) => {
+        const other = data?.find((m) => m.user_id !== user.id);
+        if (other) setOtherUserId(other.user_id);
+      });
+  }, [conversationId, user, conversation?.type]);
+
+  const { data: otherProfile } = useProfile(conversation?.type === 'direct' ? otherUserId ?? undefined : undefined);
+
+  // Mark messages as read
+  useEffect(() => {
+    if (!conversationId || !user) return;
+    supabase
+      .from('conversation_members')
+      .update({ last_read_at: new Date().toISOString() })
+      .eq('conversation_id', conversationId)
+      .eq('user_id', user.id)
+      .then(() => {});
+  }, [conversationId, user, messages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -45,7 +74,13 @@ export default function ChatDetail() {
 
   if (isLoading) return <FullPageLoading />;
 
-  const chatName = conversation?.name || '聊天';
+  const chatName = conversation?.type === 'direct'
+    ? (otherProfile?.display_name || otherProfile?.username || '聊天')
+    : (conversation?.name || '群聊');
+
+  const chatAvatar = conversation?.type === 'direct'
+    ? otherProfile?.avatar_url
+    : conversation?.avatar_url;
 
   return (
     <div className="flex h-full flex-col bg-stone-50">
@@ -53,7 +88,7 @@ export default function ChatDetail() {
         <button onClick={() => navigate(-1)} className="text-stone-600">
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <UserAvatar src={conversation?.avatar_url} name={chatName} size="sm" />
+        <UserAvatar src={chatAvatar} name={chatName} size="sm" />
         <h1 className="flex-1 truncate text-base font-semibold text-stone-900">{chatName}</h1>
         <button className="p-1.5 text-stone-500 hover:text-stone-700">
           <Phone className="h-5 w-5" />
