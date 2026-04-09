@@ -12,12 +12,15 @@ export function useConversations(userId?: string) {
       // Get user's conversation memberships
       const { data: memberships, error: memErr } = await supabase
         .from('conversation_members')
-        .select('conversation_id')
+        .select('conversation_id, is_pinned')
         .eq('user_id', userId);
       if (memErr) throw memErr;
       if (!memberships || memberships.length === 0) return [];
 
       const convIds = memberships.map((m) => m.conversation_id);
+      const pinnedSet = new Set(
+        memberships.filter((m) => m.is_pinned).map((m) => m.conversation_id)
+      );
 
       // Get conversations
       const { data: convs, error: convErr } = await supabase
