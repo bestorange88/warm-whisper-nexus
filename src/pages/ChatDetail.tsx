@@ -408,6 +408,12 @@ export default function ChatDetail() {
                         </div>
                         <Download className="h-4 w-4 shrink-0 opacity-60" />
                       </a>
+                    ) : msg.type === 'audio' && msg.media_url ? (
+                      <VoicePlayer
+                        src={msg.media_url}
+                        duration={msg.file_size || undefined}
+                        isOwn={isOwn}
+                      />
                     ) : (
                       <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                     )}
