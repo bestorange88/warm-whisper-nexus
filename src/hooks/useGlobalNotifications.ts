@@ -148,4 +148,51 @@ export function useGlobalNotifications() {
 
     return () => { supabase.removeChannel(channel); };
   }, [user, queryClient]);
+
+  // Listen to group invitations (new conversation_members rows for this user)
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('global-group-invites')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'conversation_members',
+          filter: `user_id=eq.${user.id}`,
+        },
+        async (payload) => {
+          const member = payload.new as { conversation_id: string; role: string };
+
+          // Skip if user is the owner (they created the group themselves)
+          if (member.role === 'owner') return;
+
+          queryClient.invalidateQueries({ queryKey: ['conversations'] });
+
+          const { data: conv } = await supabase
+            .from('conversations')
+            .select('name, type')
+            .eq('id', member.conversation_id)
+            .single();
+
+          // Only notify for group chats
+          if (!conv || conv.type !== 'group') return;
+
+          toast(`你被邀请加入群聊「${conv.name || '未命名群组'}」`, {
+            action: {
+              label: '查看',
+              onClick: () => {
+                window.location.href = `/chat/${member.conversation_id}`;
+              },
+            },
+            duration: 5000,
+          });
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user, queryClient]);
 }
