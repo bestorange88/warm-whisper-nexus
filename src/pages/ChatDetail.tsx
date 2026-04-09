@@ -4,6 +4,9 @@ import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical } from 'l
 import { useAuth } from '@/hooks/useAuth';
 import { useMessages, useSendMessage, useConversation } from '@/hooks/useConversations';
 import { useProfile } from '@/hooks/useProfile';
+import { useCallContext } from '@/features/calling/CallProvider';
+import { CallMessageRenderer } from '@/features/calling/components/CallMessageRenderer';
+import { isCallMessage } from '@/features/calling/callMessageBuilder';
 import { UserAvatar } from '@/components/avatar/UserAvatar';
 import { FullPageLoading } from '@/components/common/LoadingSpinner';
 import { Button } from '@/components/ui/button';
@@ -18,6 +21,7 @@ export default function ChatDetail() {
   const { data: conversation } = useConversation(conversationId);
   const { data: messages, isLoading } = useMessages(conversationId);
   const sendMessage = useSendMessage();
+  const { initiateCall } = useCallContext();
   const [input, setInput] = useState('');
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -72,13 +76,25 @@ export default function ChatDetail() {
     }
   };
 
+  const handleCall = (callType: 'audio' | 'video') => {
+    if (!otherUserId || !conversationId) return;
+    initiateCall(
+      conversationId,
+      otherUserId,
+      callType,
+      otherProfile?.display_name || otherProfile?.username,
+      otherProfile?.avatar_url || undefined,
+    );
+  };
+
   if (isLoading) return <FullPageLoading />;
 
-  const chatName = conversation?.type === 'direct'
+  const isDirectChat = conversation?.type === 'direct';
+  const chatName = isDirectChat
     ? (otherProfile?.display_name || otherProfile?.username || '聊天')
     : (conversation?.name || '群聊');
 
-  const chatAvatar = conversation?.type === 'direct'
+  const chatAvatar = isDirectChat
     ? otherProfile?.avatar_url
     : conversation?.avatar_url;
 
@@ -90,12 +106,23 @@ export default function ChatDetail() {
         </button>
         <UserAvatar src={chatAvatar} name={chatName} size="sm" />
         <h1 className="flex-1 truncate text-base font-semibold text-stone-900">{chatName}</h1>
-        <button className="p-1.5 text-stone-500 hover:text-stone-700">
-          <Phone className="h-5 w-5" />
-        </button>
-        <button className="p-1.5 text-stone-500 hover:text-stone-700">
-          <Video className="h-5 w-5" />
-        </button>
+        {/* Only show call buttons for direct chats */}
+        {isDirectChat && (
+          <>
+            <button
+              onClick={() => handleCall('audio')}
+              className="p-1.5 text-stone-500 hover:text-brand"
+            >
+              <Phone className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => handleCall('video')}
+              className="p-1.5 text-stone-500 hover:text-brand"
+            >
+              <Video className="h-5 w-5" />
+            </button>
+          </>
+        )}
         <button className="p-1.5 text-stone-500 hover:text-stone-700">
           <MoreVertical className="h-5 w-5" />
         </button>
@@ -104,6 +131,12 @@ export default function ChatDetail() {
       <div className="flex-1 overflow-y-auto px-4 py-3">
         {messages?.map((msg: Message) => {
           const isOwn = msg.sender_id === user?.id;
+
+          // Render system call messages differently
+          if (msg.type === 'system' && isCallMessage(msg.content)) {
+            return <CallMessageRenderer key={msg.id} content={msg.content!} />;
+          }
+
           return (
             <div key={msg.id} className={cn('mb-3 flex', isOwn ? 'justify-end' : 'justify-start')}>
               <div className={cn('flex max-w-[75%] gap-2', isOwn ? 'flex-row-reverse' : 'flex-row')}>
