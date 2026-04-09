@@ -260,8 +260,8 @@ export function ActiveCallScreen() {
             </h2>
             <p className={cn(
               'text-sm',
-              callState === 'connected' ? 'text-green-400' :
-              isEnded || callState === 'failed' ? 'text-red-400' : 'text-white/60'
+              state === 'connected' ? 'text-green-400' :
+              isEnded ? 'text-red-400' : 'text-white/60'
             )}>
               {getStatusText()}
             </p>
