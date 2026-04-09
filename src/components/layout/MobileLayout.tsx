@@ -3,11 +3,16 @@ import { MessageCircle, Users, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { APP_NAME_ZH } from '@/lib/constants';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/hooks/useAuth';
+import { useFriendRequests } from '@/hooks/useContacts';
 
 export function MobileLayout() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
+  const { data: pendingRequests } = useFriendRequests(user?.id);
+  const pendingCount = pendingRequests?.length ?? 0;
 
   const navItems = [
     { path: '/conversations', icon: MessageCircle, label: t('nav.messages') },
@@ -41,7 +46,14 @@ export function MobileLayout() {
                   isActive ? 'text-brand' : 'text-stone-400'
                 )}
               >
-                <Icon className="h-5 w-5" fill={isActive ? 'currentColor' : 'none'} />
+                <span className="relative">
+                  <Icon className="h-5 w-5" fill={isActive ? 'currentColor' : 'none'} />
+                  {item.path === '/contacts' && pendingCount > 0 && (
+                    <span className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-destructive-foreground">
+                      {pendingCount > 99 ? '99+' : pendingCount}
+                    </span>
+                  )}
+                </span>
                 <span>{item.label}</span>
               </button>
             );
