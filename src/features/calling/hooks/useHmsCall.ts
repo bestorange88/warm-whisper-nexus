@@ -2,15 +2,13 @@ import { useCallback, useEffect, useRef } from 'react';
 import {
   useHMSActions,
   useHMSStore,
-} from '@100mslive/react-sdk';
-import {
   selectIsConnectedToRoom,
   selectPeers,
   selectLocalPeer,
   selectIsLocalAudioEnabled,
   selectIsLocalVideoEnabled,
   selectRoomState,
-} from '@100mslive/hms-video-store';
+} from '@100mslive/react-sdk';
 
 /**
  * Hook to manage 100ms room lifecycle.
