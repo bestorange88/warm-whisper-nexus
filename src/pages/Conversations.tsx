@@ -1,7 +1,8 @@
+import { useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageCircle, Plus, Search, Image, FileText, Phone } from 'lucide-react';
+import { MessageCircle, Plus, Search, Image, FileText, Phone, Pin, PinOff, Trash2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useConversations } from '@/hooks/useConversations';
+import { useConversations, useTogglePin } from '@/hooks/useConversations';
 import { UserAvatar } from '@/components/avatar/UserAvatar';
 import { EmptyState } from '@/components/common/EmptyState';
 import { FullPageLoading } from '@/components/common/LoadingSpinner';
@@ -9,7 +10,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import type { Message } from '@/types';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import type { Message, Conversation } from '@/types';
 
 function messagePreview(msg?: Message): { icon?: React.ReactNode; text: string } {
   if (!msg) return { text: '暂无消息' };
@@ -24,10 +27,96 @@ function messagePreview(msg?: Message): { icon?: React.ReactNode; text: string }
   }
 }
 
+interface ConvMenuProps {
+  conv: Conversation;
+  position: { x: number; y: number };
+  onClose: () => void;
+  onPin: () => void;
+  onDelete: () => void;
+}
+
+function ConversationContextMenu({ conv, position, onClose, onPin, onDelete }: ConvMenuProps) {
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div
+        className="fixed z-50 min-w-[140px] rounded-xl border border-border bg-background py-1 shadow-lg animate-in fade-in zoom-in-95"
+        style={{
+          top: Math.min(position.y, window.innerHeight - 120),
+          left: Math.min(position.x, window.innerWidth - 160),
+        }}
+      >
+        <button onClick={onPin} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
+          {conv.is_pinned
+            ? <><PinOff className="h-4 w-4" /> 取消置顶</>
+            : <><Pin className="h-4 w-4" /> 置顶会话</>
+          }
+        </button>
+        <button onClick={onDelete} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-destructive hover:bg-muted">
+          <Trash2 className="h-4 w-4" /> 删除会话
+        </button>
+      </div>
+    </>
+  );
+}
+
 export default function Conversations() {
   const { user } = useAuth();
-  const { data: conversations, isLoading } = useConversations(user?.id);
+  const { data: conversations, isLoading, refetch } = useConversations(user?.id);
+  const togglePin = useTogglePin();
   const navigate = useNavigate();
+  const [contextMenu, setContextMenu] = useState<{ conv: Conversation; x: number; y: number } | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent, conv: Conversation) => {
+    const touch = e.touches[0];
+    longPressTimer.current = setTimeout(() => {
+      setContextMenu({ conv, x: touch.clientX, y: touch.clientY });
+    }, 500);
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+  }, []);
+
+  const handleContextMenu = useCallback((e: React.MouseEvent, conv: Conversation) => {
+    e.preventDefault();
+    setContextMenu({ conv, x: e.clientX, y: e.clientY });
+  }, []);
+
+  const handlePin = async () => {
+    if (!contextMenu || !user) return;
+    const conv = contextMenu.conv;
+    setContextMenu(null);
+    try {
+      await togglePin.mutateAsync({
+        conversationId: conv.id,
+        userId: user.id,
+        pinned: !conv.is_pinned,
+      });
+      toast.success(conv.is_pinned ? '已取消置顶' : '已置顶');
+    } catch {
+      toast.error('操作失败');
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!contextMenu || !user) return;
+    const conv = contextMenu.conv;
+    setContextMenu(null);
+    try {
+      // Leave the conversation (remove membership)
+      await supabase
+        .from('conversation_members')
+        .delete()
+        .eq('conversation_id', conv.id)
+        .eq('user_id', user.id);
+      toast.success('会话已删除');
+      refetch();
+    } catch {
+      toast.error('删除失败');
+    }
+  };
 
   if (isLoading) return <FullPageLoading />;
 
@@ -72,7 +161,14 @@ export default function Conversations() {
                 <button
                   key={conv.id}
                   onClick={() => navigate(`/chat/${conv.id}`)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-stone-50 active:bg-stone-100"
+                  onTouchStart={(e) => handleTouchStart(e, conv)}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchMove={handleTouchEnd}
+                  onContextMenu={(e) => handleContextMenu(e, conv)}
+                  className={cn(
+                    'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-stone-50 active:bg-stone-100',
+                    conv.is_pinned && 'bg-amber-50/60'
+                  )}
                 >
                   <div className="relative shrink-0">
                     <UserAvatar src={displayAvatar} name={displayName} size="lg" />
@@ -84,12 +180,15 @@ export default function Conversations() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between">
-                      <span className={cn(
-                        'truncate text-sm text-stone-900',
-                        unread > 0 ? 'font-semibold' : 'font-medium'
-                      )}>
-                        {displayName}
-                      </span>
+                      <div className="flex items-center gap-1 min-w-0">
+                        {conv.is_pinned && <Pin className="h-3 w-3 shrink-0 text-amber-500" />}
+                        <span className={cn(
+                          'truncate text-sm text-stone-900',
+                          unread > 0 ? 'font-semibold' : 'font-medium'
+                        )}>
+                          {displayName}
+                        </span>
+                      </div>
                       {conv.last_message && (
                         <span className="ml-2 shrink-0 text-[11px] text-stone-400">
                           {formatDistanceToNow(new Date(conv.last_message.created_at), { addSuffix: true, locale: zhCN })}
@@ -110,6 +209,16 @@ export default function Conversations() {
           </div>
         )}
       </ScrollArea>
+
+      {contextMenu && (
+        <ConversationContextMenu
+          conv={contextMenu.conv}
+          position={{ x: contextMenu.x, y: contextMenu.y }}
+          onClose={() => setContextMenu(null)}
+          onPin={handlePin}
+          onDelete={handleDelete}
+        />
+      )}
     </div>
   );
 }

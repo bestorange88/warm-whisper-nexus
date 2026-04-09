@@ -12,12 +12,15 @@ export function useConversations(userId?: string) {
       // Get user's conversation memberships
       const { data: memberships, error: memErr } = await supabase
         .from('conversation_members')
-        .select('conversation_id')
+        .select('conversation_id, is_pinned')
         .eq('user_id', userId);
       if (memErr) throw memErr;
       if (!memberships || memberships.length === 0) return [];
 
       const convIds = memberships.map((m) => m.conversation_id);
+      const pinnedSet = new Set(
+        memberships.filter((m) => m.is_pinned).map((m) => m.conversation_id)
+      );
 
       // Get conversations
       const { data: convs, error: convErr } = await supabase
@@ -64,7 +67,8 @@ export function useConversations(userId?: string) {
           }
         }
 
-        // Get unread count
+        // Get unread count and pinned status
+        c.is_pinned = pinnedSet.has(c.id);
         const { data: membership } = await supabase
           .from('conversation_members')
           .select('last_read_at')
@@ -84,6 +88,13 @@ export function useConversations(userId?: string) {
 
         result.push(c);
       }
+
+      // Sort: pinned first, then by updated_at desc
+      result.sort((a, b) => {
+        if (a.is_pinned && !b.is_pinned) return -1;
+        if (!a.is_pinned && b.is_pinned) return 1;
+        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+      });
 
       return result;
     },
@@ -369,5 +380,23 @@ export function useReadReceipt(conversationId?: string, otherUserId?: string | n
       return data?.last_read_at ?? null;
     },
     enabled: !!conversationId && !!otherUserId,
+  });
+}
+
+/** Toggle pin/unpin a conversation */
+export function useTogglePin() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { conversationId: string; userId: string; pinned: boolean }) => {
+      const { error } = await supabase
+        .from('conversation_members')
+        .update({ is_pinned: params.pinned })
+        .eq('conversation_id', params.conversationId)
+        .eq('user_id', params.userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
   });
 }

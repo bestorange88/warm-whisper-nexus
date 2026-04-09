@@ -24,6 +24,7 @@ export interface Conversation {
   updated_at: string;
   last_message?: Message;
   unread_count?: number;
+  is_pinned?: boolean;
   members?: ConversationMember[];
   other_user?: Profile;
 }
