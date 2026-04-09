@@ -123,9 +123,22 @@ export default function ChatDetail() {
             </button>
           </>
         )}
-        <button className="p-1.5 text-stone-500 hover:text-stone-700">
-          <MoreVertical className="h-5 w-5" />
-        </button>
+        {!isDirectChat && (
+          <button
+            onClick={() => navigate(`/group/${conversationId}`)}
+            className="p-1.5 text-stone-500 hover:text-stone-700"
+          >
+            <MoreVertical className="h-5 w-5" />
+          </button>
+        )}
+        {isDirectChat && (
+          <button
+            onClick={() => navigate(`/profile/${otherUserId}`)}
+            className="p-1.5 text-stone-500 hover:text-stone-700"
+          >
+            <MoreVertical className="h-5 w-5" />
+          </button>
+        )}
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 py-3">

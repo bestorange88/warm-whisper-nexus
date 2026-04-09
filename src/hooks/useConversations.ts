@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { Conversation, Message, Profile } from '@/types';
+import type { Conversation, ConversationMember, Message, Profile } from '@/types';
 
 export function useConversations(userId?: string) {
   return useQuery({
@@ -102,7 +102,31 @@ export function useConversation(conversationId?: string) {
         .eq('id', conversationId)
         .single();
       if (error) throw error;
-      return data as unknown as Conversation;
+
+      const conv = data as unknown as Conversation;
+
+      // Fetch members with profiles for group chats
+      if (conv.type === 'group') {
+        const { data: members } = await supabase
+          .from('conversation_members')
+          .select('*')
+          .eq('conversation_id', conversationId);
+
+        if (members && members.length > 0) {
+          const userIds = members.map((m) => m.user_id);
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', userIds);
+
+          conv.members = members.map((m) => ({
+            ...m,
+            profile: profiles?.find((p) => p.id === m.user_id),
+          })) as unknown as ConversationMember[];
+        }
+      }
+
+      return conv;
     },
     enabled: !!conversationId,
   });
