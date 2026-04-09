@@ -132,7 +132,7 @@ export function useConversation(conversationId?: string) {
 
           conv.members = members.map((m) => ({
             ...m,
-            profile: profiles?.find((p) => p.id === m.user_id),
+            profile: (profiles as any[])?.find((p: any) => p.id === m.user_id),
           })) as unknown as ConversationMember[];
         }
       }
