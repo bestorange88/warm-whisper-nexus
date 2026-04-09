@@ -71,7 +71,7 @@ export function useGlobalNotifications() {
           queryClient.invalidateQueries({ queryKey: ['conversations'] });
 
           const { data: sender } = await supabase
-            .from('profiles')
+            .from('public_profiles' as any)
             .select('display_name, username, avatar_url')
             .eq('id', msg.sender_id)
             .single();

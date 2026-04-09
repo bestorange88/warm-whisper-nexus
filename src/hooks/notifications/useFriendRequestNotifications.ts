@@ -78,7 +78,7 @@ export function useFriendRequestNotifications(user: User | null) {
 
     const showToast = async (request: Pick<PendingFriendRequest, 'id' | 'sender_id'>) => {
       const { data: sender } = await supabase
-        .from('profiles')
+        .from('public_profiles' as any)
         .select('display_name, username')
         .eq('id', request.sender_id)
         .single();

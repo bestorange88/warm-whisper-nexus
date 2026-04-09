@@ -56,7 +56,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
             if (stateRef.current.callState !== 'idle') return;
 
             const { data: callerProfile } = await supabase
-              .from('profiles')
+              .from('public_profiles' as any)
               .select('display_name, avatar_url, username')
               .eq('id', session.caller_id)
               .single();
