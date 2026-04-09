@@ -57,7 +57,7 @@ export function useConversations(userId?: string) {
           const otherUserId = members?.find((m) => m.user_id !== userId)?.user_id;
           if (otherUserId) {
             const { data: profile } = await supabase
-              .from('profiles')
+              .from('public_profiles' as any)
               .select('*')
               .eq('id', otherUserId)
               .single();
@@ -126,7 +126,7 @@ export function useConversation(conversationId?: string) {
         if (members && members.length > 0) {
           const userIds = members.map((m) => m.user_id);
           const { data: profiles } = await supabase
-            .from('profiles')
+            .from('public_profiles' as any)
             .select('*')
             .in('id', userIds);
 

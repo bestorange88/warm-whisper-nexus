@@ -175,7 +175,7 @@ export function useSearchUsers(query: string) {
     queryFn: async () => {
       if (!query || query.length < 2) return [];
       const { data, error } = await supabase
-        .from('profiles')
+        .from('public_profiles' as any)
         .select('*')
         .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
         .limit(20);
