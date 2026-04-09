@@ -4,6 +4,9 @@ import { Toaster } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { FullPageLoading } from '@/components/common/LoadingSpinner';
+import { CallProvider } from '@/features/calling/CallProvider';
+import { IncomingCallModal } from '@/features/calling/components/IncomingCallModal';
+import { ActiveCallScreen } from '@/features/calling/components/ActiveCallScreen';
 import { lazy, Suspense } from 'react';
 
 const Login = lazy(() => import('@/pages/Login'));
@@ -59,6 +62,16 @@ function PageSuspense({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<FullPageLoading />}>{children}</Suspense>;
 }
 
+function AuthenticatedApp() {
+  return (
+    <CallProvider>
+      <Outlet />
+      <IncomingCallModal />
+      <ActiveCallScreen />
+    </CallProvider>
+  );
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -74,30 +87,32 @@ export default function App() {
             <Route path="/privacy" element={<PageSuspense><Privacy /></PageSuspense>} />
 
             <Route element={<ProtectedRoute />}>
-              <Route element={<MobileLayout />}>
-                <Route path="/conversations" element={<PageSuspense><Conversations /></PageSuspense>} />
-                <Route path="/contacts" element={<PageSuspense><Contacts /></PageSuspense>} />
-                <Route path="/settings" element={<PageSuspense><Settings /></PageSuspense>} />
-              </Route>
+              <Route element={<AuthenticatedApp />}>
+                <Route element={<MobileLayout />}>
+                  <Route path="/conversations" element={<PageSuspense><Conversations /></PageSuspense>} />
+                  <Route path="/contacts" element={<PageSuspense><Contacts /></PageSuspense>} />
+                  <Route path="/settings" element={<PageSuspense><Settings /></PageSuspense>} />
+                </Route>
 
-              <Route path="/chat/:conversationId" element={<PageSuspense><ChatDetail /></PageSuspense>} />
-              <Route path="/chat/new" element={<PageSuspense><ChatDetail /></PageSuspense>} />
-              <Route path="/profile" element={<PageSuspense><Profile /></PageSuspense>} />
-              <Route path="/profile/edit" element={<PageSuspense><ProfileEdit /></PageSuspense>} />
-              <Route path="/profile/:userId" element={<PageSuspense><UserProfile /></PageSuspense>} />
-              <Route path="/search" element={<PageSuspense><Search /></PageSuspense>} />
-              <Route path="/friend-requests" element={<PageSuspense><FriendRequests /></PageSuspense>} />
-              <Route path="/add-friend" element={<PageSuspense><AddFriend /></PageSuspense>} />
-              <Route path="/create-group" element={<PageSuspense><CreateGroup /></PageSuspense>} />
-              <Route path="/group/:conversationId" element={<PageSuspense><GroupDetail /></PageSuspense>} />
-              <Route path="/report/user/:userId" element={<PageSuspense><ReportUser /></PageSuspense>} />
-              <Route path="/report/message/:messageId" element={<PageSuspense><ReportMessage /></PageSuspense>} />
-              <Route path="/settings/privacy" element={<PageSuspense><PrivacySettings /></PageSuspense>} />
-              <Route path="/settings/notifications" element={<PageSuspense><NotificationSettings /></PageSuspense>} />
-              <Route path="/settings/blocked" element={<PageSuspense><BlockedUsers /></PageSuspense>} />
-              <Route path="/settings/delete-account" element={<PageSuspense><DeleteAccount /></PageSuspense>} />
-              <Route path="/settings/help" element={<PageSuspense><Help /></PageSuspense>} />
-              <Route path="/settings/about" element={<PageSuspense><About /></PageSuspense>} />
+                <Route path="/chat/:conversationId" element={<PageSuspense><ChatDetail /></PageSuspense>} />
+                <Route path="/chat/new" element={<PageSuspense><ChatDetail /></PageSuspense>} />
+                <Route path="/profile" element={<PageSuspense><Profile /></PageSuspense>} />
+                <Route path="/profile/edit" element={<PageSuspense><ProfileEdit /></PageSuspense>} />
+                <Route path="/profile/:userId" element={<PageSuspense><UserProfile /></PageSuspense>} />
+                <Route path="/search" element={<PageSuspense><Search /></PageSuspense>} />
+                <Route path="/friend-requests" element={<PageSuspense><FriendRequests /></PageSuspense>} />
+                <Route path="/add-friend" element={<PageSuspense><AddFriend /></PageSuspense>} />
+                <Route path="/create-group" element={<PageSuspense><CreateGroup /></PageSuspense>} />
+                <Route path="/group/:conversationId" element={<PageSuspense><GroupDetail /></PageSuspense>} />
+                <Route path="/report/user/:userId" element={<PageSuspense><ReportUser /></PageSuspense>} />
+                <Route path="/report/message/:messageId" element={<PageSuspense><ReportMessage /></PageSuspense>} />
+                <Route path="/settings/privacy" element={<PageSuspense><PrivacySettings /></PageSuspense>} />
+                <Route path="/settings/notifications" element={<PageSuspense><NotificationSettings /></PageSuspense>} />
+                <Route path="/settings/blocked" element={<PageSuspense><BlockedUsers /></PageSuspense>} />
+                <Route path="/settings/delete-account" element={<PageSuspense><DeleteAccount /></PageSuspense>} />
+                <Route path="/settings/help" element={<PageSuspense><Help /></PageSuspense>} />
+                <Route path="/settings/about" element={<PageSuspense><About /></PageSuspense>} />
+              </Route>
             </Route>
 
             <Route path="/" element={<Navigate to="/conversations" replace />} />
