@@ -487,10 +487,12 @@ export default function ChatDetail() {
             <div className="flex h-10 w-10 shrink-0 items-center justify-center">
               <Loader2 className="h-5 w-5 animate-spin text-brand" />
             </div>
-          ) : (
-            <Button size="icon" className="h-10 w-10 shrink-0 rounded-full" onClick={handleSend} disabled={!input.trim()}>
+          ) : input.trim() ? (
+            <Button size="icon" className="h-10 w-10 shrink-0 rounded-full" onClick={handleSend}>
               <Send className="h-5 w-5" />
             </Button>
+          ) : (
+            <VoiceRecorder onSend={handleVoiceSend} disabled={uploading} />
           )}
         </div>
       </div>
