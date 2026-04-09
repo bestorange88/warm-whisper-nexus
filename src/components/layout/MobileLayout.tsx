@@ -5,6 +5,7 @@ import { APP_NAME_ZH } from '@/lib/constants';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { useFriendRequests } from '@/hooks/useContacts';
+import { useConversations } from '@/hooks/useConversations';
 
 export function MobileLayout() {
   const { t } = useTranslation();
@@ -13,6 +14,8 @@ export function MobileLayout() {
   const { user } = useAuth();
   const { data: pendingRequests } = useFriendRequests(user?.id);
   const pendingCount = pendingRequests?.length ?? 0;
+  const { data: conversations } = useConversations(user?.id);
+  const totalUnread = (conversations ?? []).reduce((sum, c) => sum + (c.unread_count ?? 0), 0);
 
   const navItems = [
     { path: '/conversations', icon: MessageCircle, label: t('nav.messages') },
@@ -51,6 +54,11 @@ export function MobileLayout() {
                   {item.path === '/contacts' && pendingCount > 0 && (
                     <span className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-destructive-foreground">
                       {pendingCount > 99 ? '99+' : pendingCount}
+                    </span>
+                  )}
+                  {item.path === '/conversations' && totalUnread > 0 && (
+                    <span className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-destructive-foreground">
+                      {totalUnread > 99 ? '99+' : totalUnread}
                     </span>
                   )}
                 </span>
