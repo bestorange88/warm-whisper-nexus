@@ -2,14 +2,9 @@ import { useState } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Switch } from '@/components/ui/switch';
 import { MessageSquare, Phone, Users, Volume2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
-interface SettingRowProps {
-  label: string;
-  description: string;
-  checked: boolean;
-  onCheckedChange: (v: boolean) => void;
-}
-
+interface SettingRowProps { label: string; description: string; checked: boolean; onCheckedChange: (v: boolean) => void; }
 function SettingRow({ label, description, checked, onCheckedChange }: SettingRowProps) {
   return (
     <div className="flex items-center justify-between px-4 py-4">
@@ -22,12 +17,7 @@ function SettingRow({ label, description, checked, onCheckedChange }: SettingRow
   );
 }
 
-interface SectionProps {
-  icon: React.ReactNode;
-  title: string;
-  children: React.ReactNode;
-}
-
+interface SectionProps { icon: React.ReactNode; title: string; children: React.ReactNode; }
 function Section({ icon, title, children }: SectionProps) {
   return (
     <div className="mt-2 border-t border-border">
@@ -41,89 +31,36 @@ function Section({ icon, title, children }: SectionProps) {
 }
 
 export default function NotificationSettings() {
-  // 新消息
+  const { t } = useTranslation();
   const [msgEnabled, setMsgEnabled] = useState(true);
   const [msgSound, setMsgSound] = useState(true);
   const [msgPreview, setMsgPreview] = useState(true);
-
-  // 通话
   const [callEnabled, setCallEnabled] = useState(true);
   const [callVibrate, setCallVibrate] = useState(true);
-
-  // 好友与群组
   const [friendReq, setFriendReq] = useState(true);
   const [groupInvite, setGroupInvite] = useState(true);
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <PageHeader title="通知设置" />
+      <PageHeader title={t('notification.title')} />
       <div className="flex-1 overflow-y-auto pb-8">
-        <Section
-          icon={<MessageSquare className="h-4 w-4 text-primary" />}
-          title="新消息提醒"
-        >
-          <SettingRow
-            label="新消息通知"
-            description="收到新消息时提醒"
-            checked={msgEnabled}
-            onCheckedChange={setMsgEnabled}
-          />
-          <SettingRow
-            label="通知声音"
-            description="收到消息时播放提示音"
-            checked={msgSound}
-            onCheckedChange={setMsgSound}
-          />
-          <SettingRow
-            label="消息预览"
-            description="在通知中显示消息内容"
-            checked={msgPreview}
-            onCheckedChange={setMsgPreview}
-          />
+        <Section icon={<MessageSquare className="h-4 w-4 text-primary" />} title={t('notification.newMessage')}>
+          <SettingRow label={t('notification.newMessageNotification')} description={t('notification.newMessageDesc')} checked={msgEnabled} onCheckedChange={setMsgEnabled} />
+          <SettingRow label={t('notification.notificationSound')} description={t('notification.notificationSoundDesc')} checked={msgSound} onCheckedChange={setMsgSound} />
+          <SettingRow label={t('notification.messagePreview')} description={t('notification.messagePreviewDesc')} checked={msgPreview} onCheckedChange={setMsgPreview} />
         </Section>
-
-        <Section
-          icon={<Phone className="h-4 w-4 text-primary" />}
-          title="通话提醒"
-        >
-          <SettingRow
-            label="来电通知"
-            description="有来电时弹出提醒"
-            checked={callEnabled}
-            onCheckedChange={setCallEnabled}
-          />
-          <SettingRow
-            label="来电振动"
-            description="来电时振动提醒"
-            checked={callVibrate}
-            onCheckedChange={setCallVibrate}
-          />
+        <Section icon={<Phone className="h-4 w-4 text-primary" />} title={t('notification.callNotification')}>
+          <SettingRow label={t('notification.incomingCall')} description={t('notification.incomingCallDesc')} checked={callEnabled} onCheckedChange={setCallEnabled} />
+          <SettingRow label={t('notification.callVibrate')} description={t('notification.callVibrateDesc')} checked={callVibrate} onCheckedChange={setCallVibrate} />
         </Section>
-
-        <Section
-          icon={<Users className="h-4 w-4 text-primary" />}
-          title="好友与群组"
-        >
-          <SettingRow
-            label="好友请求"
-            description="收到好友申请时提醒"
-            checked={friendReq}
-            onCheckedChange={setFriendReq}
-          />
-          <SettingRow
-            label="群组邀请"
-            description="被邀请加入群聊时提醒"
-            checked={groupInvite}
-            onCheckedChange={setGroupInvite}
-          />
+        <Section icon={<Users className="h-4 w-4 text-primary" />} title={t('notification.friendsAndGroups')}>
+          <SettingRow label={t('notification.friendRequest')} description={t('notification.friendRequestDesc')} checked={friendReq} onCheckedChange={setFriendReq} />
+          <SettingRow label={t('notification.groupInvite')} description={t('notification.groupInviteDesc')} checked={groupInvite} onCheckedChange={setGroupInvite} />
         </Section>
-
         <div className="mt-6 px-4">
           <div className="flex items-start gap-2 rounded-lg bg-muted p-3">
             <Volume2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground">
-              当前版本的通知仅在应用内生效。系统级推送通知将在后续版本中支持。
-            </p>
+            <p className="text-xs text-muted-foreground">{t('notification.inAppOnly')}</p>
           </div>
         </div>
       </div>
