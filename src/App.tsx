@@ -64,6 +64,11 @@ function PageSuspense({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<FullPageLoading />}>{children}</Suspense>;
 }
 
+function GlobalNotificationListener() {
+  useGlobalNotifications();
+  return null;
+}
+
 function AuthenticatedApp() {
   return (
     <HMSRoomProvider>
@@ -71,6 +76,7 @@ function AuthenticatedApp() {
         <Outlet />
         <IncomingCallModal />
         <ActiveCallScreen />
+        <GlobalNotificationListener />
       </CallProvider>
     </HMSRoomProvider>
   );
