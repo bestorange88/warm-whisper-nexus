@@ -184,7 +184,7 @@ export function ActiveCallScreen() {
   const remotePeer = remotePeers[0];
 
   const getStatusText = () => {
-    switch (callState) {
+    switch (state) {
       case 'dialing': return '正在呼叫...';
       case 'connecting': return '连接中...';
       case 'connected': return formatDuration(elapsedSeconds);
@@ -204,25 +204,25 @@ export function ActiveCallScreen() {
   };
 
   const handleHangup = () => {
-    if (callState === 'dialing') {
+    if (state === 'dialing') {
       cancelCall();
     } else {
       endCall();
     }
   };
 
-  const isActive = ['dialing', 'connecting', 'connected', 'reconnecting'].includes(callState);
-  const isEnded = callState === 'ended' || callState === 'failed';
+  const isActive = ['dialing', 'connecting', 'connected', 'reconnecting'].includes(state);
+  const isEnded = state === 'ended' || state === 'failed';
 
   // Determine error banner
   const getErrorBanner = () => {
     if (showReconnecting) {
       return <CallErrorBanner icon={WifiOff} message="网络不稳定，正在重新连接..." />;
     }
-    if (callState === 'failed' && error?.includes('权限')) {
+    if (state === 'failed' && error?.includes('权限')) {
       return <CallErrorBanner icon={ShieldAlert} message="请在设置中允许麦克风和摄像头权限" />;
     }
-    if (callState === 'failed') {
+    if (state === 'failed') {
       return <CallErrorBanner icon={AlertTriangle} message={error || '通话失败'} />;
     }
     return null;
