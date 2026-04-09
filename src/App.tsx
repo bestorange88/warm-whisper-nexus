@@ -8,6 +8,7 @@ import { FullPageLoading } from '@/components/common/LoadingSpinner';
 import { CallProvider } from '@/features/calling/CallProvider';
 import { IncomingCallModal } from '@/features/calling/components/IncomingCallModal';
 import { ActiveCallScreen } from '@/features/calling/components/ActiveCallScreen';
+import { useGlobalNotifications } from '@/hooks/useGlobalNotifications';
 import { lazy, Suspense } from 'react';
 
 const Login = lazy(() => import('@/pages/Login'));
@@ -63,6 +64,11 @@ function PageSuspense({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<FullPageLoading />}>{children}</Suspense>;
 }
 
+function GlobalNotificationListener() {
+  useGlobalNotifications();
+  return null;
+}
+
 function AuthenticatedApp() {
   return (
     <HMSRoomProvider>
@@ -70,6 +76,7 @@ function AuthenticatedApp() {
         <Outlet />
         <IncomingCallModal />
         <ActiveCallScreen />
+        <GlobalNotificationListener />
       </CallProvider>
     </HMSRoomProvider>
   );
