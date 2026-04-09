@@ -21,7 +21,7 @@ export function useConversations(userId?: string) {
         .in('id', convIds)
         .order('updated_at', { ascending: false });
       if (convErr) throw convErr;
-      return (convs || []) as Conversation[];
+      return (convs || []) as unknown as Conversation[];
     },
     enabled: !!userId,
   });
@@ -38,7 +38,7 @@ export function useConversation(conversationId?: string) {
         .eq('id', conversationId)
         .single();
       if (error) throw error;
-      return data as Conversation;
+      return data as unknown as Conversation;
     },
     enabled: !!conversationId,
   });
@@ -51,13 +51,13 @@ export function useMessages(conversationId?: string) {
       if (!conversationId) return [];
       const { data, error } = await supabase
         .from('messages')
-        .select('*, sender:profiles!sender_id(*)')
+        .select('*, sender:profiles!messages_sender_id_fkey(*)')
         .eq('conversation_id', conversationId)
         .eq('is_deleted', false)
         .order('created_at', { ascending: true })
         .limit(100);
       if (error) throw error;
-      return (data || []) as Message[];
+      return (data || []) as unknown as Message[];
     },
     enabled: !!conversationId,
   });
@@ -77,7 +77,7 @@ export function useSendMessage() {
         .from('conversations')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', msg.conversation_id);
-      return data as Message;
+      return data as unknown as Message;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['messages', data.conversation_id] });
@@ -98,13 +98,13 @@ export function useCreateConversation() {
       if (convErr) throw convErr;
 
       const members = params.memberIds.map((uid) => ({
-        conversation_id: conv.id,
+        conversation_id: conv!.id,
         user_id: uid,
         role: uid === params.createdBy ? 'owner' : 'member',
       }));
       const { error: memErr } = await supabase.from('conversation_members').insert(members);
       if (memErr) throw memErr;
-      return conv as Conversation;
+      return conv as unknown as Conversation;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });

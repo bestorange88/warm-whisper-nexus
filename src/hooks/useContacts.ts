@@ -9,10 +9,10 @@ export function useFriends(userId?: string) {
       if (!userId) return [];
       const { data, error } = await supabase
         .from('friendships')
-        .select('*, friend:profiles!friend_id(*)')
+        .select('*, friend:profiles!friendships_friend_id_fkey(*)')
         .eq('user_id', userId);
       if (error) throw error;
-      return (data || []) as Friendship[];
+      return (data || []) as unknown as Friendship[];
     },
     enabled: !!userId,
   });
@@ -25,12 +25,12 @@ export function useFriendRequests(userId?: string) {
       if (!userId) return [];
       const { data, error } = await supabase
         .from('friend_requests')
-        .select('*, sender:profiles!sender_id(*)')
+        .select('*, sender:profiles!friend_requests_sender_id_fkey(*)')
         .eq('receiver_id', userId)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data || []) as FriendRequest[];
+      return (data || []) as unknown as FriendRequest[];
     },
     enabled: !!userId,
   });
@@ -46,7 +46,7 @@ export function useSendFriendRequest() {
         .select()
         .single();
       if (error) throw error;
-      return data as FriendRequest;
+      return data as unknown as FriendRequest;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['friend_requests'] });
@@ -90,7 +90,7 @@ export function useBlockUser() {
         .select()
         .single();
       if (error) throw error;
-      return data as Block;
+      return data as unknown as Block;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['blocks'] });
@@ -123,10 +123,10 @@ export function useBlocks(userId?: string) {
       if (!userId) return [];
       const { data, error } = await supabase
         .from('blocks')
-        .select('*, blocked_user:profiles!blocked_id(*)')
+        .select('*, blocked_user:profiles!blocks_blocked_id_fkey(*)')
         .eq('blocker_id', userId);
       if (error) throw error;
-      return (data || []) as Block[];
+      return (data || []) as unknown as Block[];
     },
     enabled: !!userId,
   });
@@ -143,7 +143,7 @@ export function useSearchUsers(query: string) {
         .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
         .limit(20);
       if (error) throw error;
-      return (data || []) as Profile[];
+      return (data || []) as unknown as Profile[];
     },
     enabled: query.length >= 2,
   });
