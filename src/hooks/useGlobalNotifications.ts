@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import i18n from '@/i18n';
+import { useFriendRequestNotifications } from '@/hooks/notifications/useFriendRequestNotifications';
 
 /**
  * Global listener for new messages across all conversations.
@@ -16,7 +17,8 @@ export function useGlobalNotifications() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const memberConvIdsRef = useRef<string[]>([]);
-  const friendRequestIdsRef = useRef<Set<string>>(new Set());
+
+  useFriendRequestNotifications(user);
 
   useEffect(() => {
     if (!user) return;
@@ -99,62 +101,6 @@ export function useGlobalNotifications() {
 
     return () => { supabase.removeChannel(channel); };
   }, [user, location.pathname, queryClient]);
-
-  useEffect(() => {
-    if (!user) return;
-
-    const bootstrapRequestIds = async () => {
-      const { data } = await supabase
-        .from('friend_requests')
-        .select('id')
-        .eq('receiver_id', user.id)
-        .eq('status', 'pending');
-      friendRequestIdsRef.current = new Set((data ?? []).map((item) => item.id));
-    };
-
-    bootstrapRequestIds();
-
-    const channel = supabase
-      .channel('global-friend-requests')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'friend_requests',
-          filter: `receiver_id=eq.${user.id}`,
-        },
-        async (payload) => {
-          const req = payload.new as { id: string; sender_id: string };
-          if (friendRequestIdsRef.current.has(req.id)) return;
-          friendRequestIdsRef.current.add(req.id);
-
-          queryClient.invalidateQueries({ queryKey: ['friend_requests', user.id] });
-
-          const { data: sender } = await supabase
-            .from('profiles')
-            .select('display_name, username')
-            .eq('id', req.sender_id)
-            .single();
-
-          const t = i18n.t.bind(i18n);
-          const name = sender?.display_name || sender?.username || '';
-
-          toast(t('contacts.friendRequestReceived', { name }), {
-            action: {
-              label: t('common.view'),
-              onClick: () => {
-                window.location.href = '/friend-requests';
-              },
-            },
-            duration: 5000,
-          });
-        }
-      )
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [user, queryClient]);
 
   useEffect(() => {
     if (!user) return;
