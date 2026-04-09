@@ -97,7 +97,8 @@
     "operationFailed": "操作失败",
     "deleteFailed2": "删除失败",
     "sent": "已发送",
-    "read": "已读"
+    "read": "已读",
+    "unnamed": "未命名"
   },
   "contacts": {
     "friendRequests": "好友请求",

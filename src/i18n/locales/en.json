@@ -97,7 +97,8 @@
     "operationFailed": "Operation failed",
     "deleteFailed2": "Delete failed",
     "sent": "Sent",
-    "read": "Read"
+    "read": "Read",
+    "unnamed": "Unnamed"
   },
   "contacts": {
     "friendRequests": "Friend Requests",
