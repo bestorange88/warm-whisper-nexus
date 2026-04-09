@@ -1,16 +1,17 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   useVideo,
   useHMSStore,
-  selectCameraStreamByPeerID,
 } from '@100mslive/react-sdk';
+import {
+  selectCameraStreamByPeerID,
+} from '@100mslive/hms-video-store';
 import { useCallContext } from '../CallProvider';
 import { useHmsCall } from '../hooks/useHmsCall';
 import { UserAvatar } from '@/components/avatar/UserAvatar';
 import { formatDuration } from '../utils';
 import {
-  Mic, MicOff, Video, VideoOff, PhoneOff,
-  SwitchCamera, Volume2,
+  Mic, MicOff, Video, VideoOff, PhoneOff, Volume2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -33,13 +34,17 @@ function PeerVideo({ peerId, isLocal, mirror }: { peerId: string; isLocal?: bool
 }
 
 export function ActiveCallScreen() {
+  const ctx = useCallContext();
   const {
     callState, activeCall, endReason, duration,
     cancelCall, endCall,
-  } = useCallContext();
+  } = ctx;
+
+  // Access onHmsConnected from context
+  const onHmsConnected = (ctx as any).onHmsConnected;
 
   const {
-    join, leave, isConnected, isReconnecting,
+    join, leave, isConnected,
     localPeer, remotePeers,
     isAudioEnabled, isVideoEnabled,
     toggleAudio, toggleVideo,
@@ -52,16 +57,10 @@ export function ActiveCallScreen() {
 
   const shouldShow = ['dialing', 'connecting', 'connected', 'reconnecting', 'ended', 'failed'].includes(callState);
 
-  // Join 100ms room when we have a token and state is connecting
+  // Join 100ms room when we have a token
   useEffect(() => {
     if (!activeCall?.hmsToken || hasJoinedRef.current) return;
     if (callState !== 'connecting' && callState !== 'dialing') return;
-
-    // For caller: join when dialing (they got the token from session creation)
-    // For callee: join when connecting (they got the token from accepting)
-    const shouldJoin = (callState === 'dialing' && activeCall.hmsToken) ||
-                       (callState === 'connecting' && activeCall.hmsToken);
-    if (!shouldJoin) return;
 
     hasJoinedRef.current = true;
     const userName = activeCall.callerName || activeCall.calleeName || 'User';
@@ -72,19 +71,11 @@ export function ActiveCallScreen() {
   }, [callState, activeCall?.hmsToken, join, activeCall?.callerName, activeCall?.calleeName]);
 
   // Detect when 100ms connects → dispatch CONNECTED
-  const { onHmsConnected } = useCallContext() as any;
   useEffect(() => {
     if (isConnected && (callState === 'connecting' || callState === 'dialing')) {
       onHmsConnected?.();
     }
   }, [isConnected, callState, onHmsConnected]);
-
-  // Detect reconnecting state
-  useEffect(() => {
-    if (isReconnecting && callState === 'connected') {
-      // The state machine will handle this via RECONNECTING action
-    }
-  }, [isReconnecting, callState]);
 
   // Leave room when call ends
   useEffect(() => {
@@ -130,7 +121,7 @@ export function ActiveCallScreen() {
   const isCaller = !!activeCall.calleeName;
   const remoteName = isCaller ? activeCall.calleeName : activeCall.callerName;
   const remoteAvatar = isCaller ? activeCall.calleeAvatar : activeCall.callerAvatar;
-  const remotePeer = remotePeers[0]; // 1-on-1 call
+  const remotePeer = remotePeers[0];
 
   const getStatusText = () => {
     switch (callState) {
@@ -169,12 +160,10 @@ export function ActiveCallScreen() {
       {/* Main content area */}
       <div className="flex flex-1 flex-col items-center justify-center">
         {isVideo && callState === 'connected' && remotePeer ? (
-          /* Remote video - full screen */
           <div className="absolute inset-0">
             <PeerVideo peerId={remotePeer.id} />
           </div>
         ) : (
-          /* Audio call or waiting states */
           <div className="flex flex-col items-center">
             <div className="relative mb-6">
               {callState === 'dialing' && (
@@ -198,7 +187,7 @@ export function ActiveCallScreen() {
           </div>
         )}
 
-        {/* Video call status overlay (when remote video is showing) */}
+        {/* Overlay name/status when remote video is showing */}
         {isVideo && callState === 'connected' && remotePeer && (
           <div className="absolute left-0 right-0 top-16 z-10 text-center">
             <h2 className="text-lg font-semibold text-white drop-shadow-lg">
@@ -209,7 +198,7 @@ export function ActiveCallScreen() {
         )}
       </div>
 
-      {/* Local video preview (video calls only) */}
+      {/* Local video preview */}
       {isVideo && callState === 'connected' && isVideoEnabled && localPeer && (
         <div className="absolute right-4 top-16 z-20 h-40 w-28 overflow-hidden rounded-xl bg-stone-800 shadow-lg">
           <PeerVideo peerId={localPeer.id} isLocal mirror />
@@ -220,7 +209,6 @@ export function ActiveCallScreen() {
       {isActive && (
         <div className="safe-area-bottom relative z-30 pb-10">
           <div className="flex items-center justify-center gap-6">
-            {/* Mute */}
             <button
               onClick={toggleAudio}
               className={cn(
@@ -231,7 +219,6 @@ export function ActiveCallScreen() {
               {!isAudioEnabled ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
             </button>
 
-            {/* Camera toggle (video only) */}
             {isVideo && (
               <button
                 onClick={toggleVideo}
@@ -244,12 +231,10 @@ export function ActiveCallScreen() {
               </button>
             )}
 
-            {/* Speaker */}
             <button className="flex h-14 w-14 items-center justify-center rounded-full bg-white/20 text-white">
               <Volume2 className="h-6 w-6" />
             </button>
 
-            {/* Hangup */}
             <button
               onClick={handleHangup}
               className="flex h-16 w-16 items-center justify-center rounded-full bg-red-500 text-white shadow-lg transition-transform active:scale-95"

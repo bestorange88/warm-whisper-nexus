@@ -2,14 +2,15 @@ import { useCallback, useEffect, useRef } from 'react';
 import {
   useHMSActions,
   useHMSStore,
+} from '@100mslive/react-sdk';
+import {
   selectIsConnectedToRoom,
   selectPeers,
   selectLocalPeer,
   selectIsLocalAudioEnabled,
   selectIsLocalVideoEnabled,
-  selectConnectionState,
-  HMSConnectionState,
-} from '@100mslive/react-sdk';
+  selectRoomState,
+} from '@100mslive/hms-video-store';
 
 /**
  * Hook to manage 100ms room lifecycle.
@@ -22,7 +23,7 @@ export function useHmsCall() {
   const localPeer = useHMSStore(selectLocalPeer);
   const isAudioEnabled = useHMSStore(selectIsLocalAudioEnabled);
   const isVideoEnabled = useHMSStore(selectIsLocalVideoEnabled);
-  const connectionState = useHMSStore(selectConnectionState);
+  const roomState = useHMSStore(selectRoomState);
   const joinedRef = useRef(false);
 
   const join = useCallback(async (token: string, userName: string) => {
@@ -76,7 +77,7 @@ export function useHmsCall() {
     join,
     leave,
     isConnected,
-    connectionState,
+    roomState,
     localPeer,
     remotePeers,
     peers,
@@ -84,6 +85,6 @@ export function useHmsCall() {
     isVideoEnabled,
     toggleAudio,
     toggleVideo,
-    isReconnecting: connectionState === HMSConnectionState.Reconnecting,
+    isReconnecting: roomState === 'Reconnecting',
   };
 }
