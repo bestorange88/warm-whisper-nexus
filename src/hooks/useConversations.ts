@@ -382,3 +382,21 @@ export function useReadReceipt(conversationId?: string, otherUserId?: string | n
     enabled: !!conversationId && !!otherUserId,
   });
 }
+
+/** Toggle pin/unpin a conversation */
+export function useTogglePin() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { conversationId: string; userId: string; pinned: boolean }) => {
+      const { error } = await supabase
+        .from('conversation_members')
+        .update({ is_pinned: params.pinned })
+        .eq('conversation_id', params.conversationId)
+        .eq('user_id', params.userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+}
