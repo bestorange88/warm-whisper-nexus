@@ -159,6 +159,7 @@ export type Database = {
           conversation_id: string
           id: string
           is_muted: boolean | null
+          is_pinned: boolean
           joined_at: string | null
           last_read_at: string | null
           muted_until: string | null
@@ -169,6 +170,7 @@ export type Database = {
           conversation_id: string
           id?: string
           is_muted?: boolean | null
+          is_pinned?: boolean
           joined_at?: string | null
           last_read_at?: string | null
           muted_until?: string | null
@@ -179,6 +181,7 @@ export type Database = {
           conversation_id?: string
           id?: string
           is_muted?: boolean | null
+          is_pinned?: boolean
           joined_at?: string | null
           last_read_at?: string | null
           muted_until?: string | null
