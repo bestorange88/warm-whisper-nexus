@@ -2,16 +2,18 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { MessageCircle, Users, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { APP_NAME_ZH } from '@/lib/constants';
-
-const navItems = [
-  { path: '/conversations', icon: MessageCircle, label: '消息' },
-  { path: '/contacts', icon: Users, label: '联系人' },
-  { path: '/settings', icon: Settings, label: '设置' },
-];
+import { useTranslation } from 'react-i18next';
 
 export function MobileLayout() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const navItems = [
+    { path: '/conversations', icon: MessageCircle, label: t('nav.messages') },
+    { path: '/contacts', icon: Users, label: t('nav.contacts') },
+    { path: '/settings', icon: Settings, label: t('nav.settings') },
+  ];
 
   const isMainRoute = navItems.some((item) => item.path === location.pathname);
 
