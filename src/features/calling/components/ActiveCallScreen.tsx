@@ -65,8 +65,11 @@ export function ActiveCallScreen() {
   const hasJoinedRef = useRef(false);
   const joinAttemptRef = useRef(0);
 
-  const showStates = new Set(['dialing', 'connecting', 'connected', 'reconnecting', 'ended', 'failed']);
-  const shouldShow = showStates.has(callState);
+  type ShowCallState = 'dialing' | 'connecting' | 'connected' | 'reconnecting' | 'ended' | 'failed';
+  const showStates: ShowCallState[] = ['dialing', 'connecting', 'connected', 'reconnecting', 'ended', 'failed'];
+  const shouldShow = showStates.includes(callState as ShowCallState);
+  // After guard, treat callState as narrowed
+  const state = callState as ShowCallState;
 
   // Join 100ms room when we have a token
   useEffect(() => {
