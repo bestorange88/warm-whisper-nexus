@@ -85,7 +85,7 @@ export function useFriendRequestNotifications(user: User | null) {
 
       if (!isActive) return;
 
-      const name = sender?.display_name || sender?.username || '';
+      const name = (sender as any)?.display_name || (sender as any)?.username || '';
 
       toast(t('contacts.friendRequestReceived', { name }), {
         action: {
