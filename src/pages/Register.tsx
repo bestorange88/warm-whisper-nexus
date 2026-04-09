@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
 import { APP_NAME_ZH } from '@/lib/constants';
-import { MessageCircle } from 'lucide-react';
+import logoImage from '@/assets/logo.png';
 
 export default function Register() {
   const [email, setEmail] = useState('');
@@ -52,9 +52,7 @@ export default function Register() {
     <div className="flex h-full flex-col items-center justify-center bg-white px-6">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center">
-          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand shadow-lg">
-            <MessageCircle className="h-8 w-8 text-white" fill="white" />
-          </div>
+          <img src={logoImage} alt="阿基米●聊" className="mb-4 h-16 w-16 rounded-2xl shadow-lg" />
           <h1 className="text-xl font-bold text-stone-900">注册 {APP_NAME_ZH}</h1>
         </div>
 
