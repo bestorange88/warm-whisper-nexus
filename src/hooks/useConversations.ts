@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { Conversation, Message, Profile } from '@/types';
+import type { Conversation, ConversationMember, Message, Profile } from '@/types';
 
 export function useConversations(userId?: string) {
   return useQuery({
