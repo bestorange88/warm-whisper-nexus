@@ -1,8 +1,10 @@
 import { useCallContext } from '../CallProvider';
 import { UserAvatar } from '@/components/avatar/UserAvatar';
 import { Phone, PhoneOff, Video } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export function IncomingCallModal() {
+  const { t } = useTranslation();
   const { callState, activeCall, acceptCall, rejectCall } = useCallContext();
 
   if (callState !== 'incoming' || !activeCall) return null;
@@ -12,7 +14,6 @@ export function IncomingCallModal() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
       <div className="flex w-80 flex-col items-center rounded-3xl bg-gradient-to-b from-stone-800 to-stone-900 p-8 shadow-2xl">
-        {/* Caller info */}
         <div className="relative mb-6">
           <div className="animate-ping absolute inset-0 rounded-full bg-green-400/20" />
           <UserAvatar
@@ -23,13 +24,12 @@ export function IncomingCallModal() {
         </div>
 
         <h2 className="mb-1 text-xl font-semibold text-white">
-          {activeCall.callerName || '未知用户'}
+          {activeCall.callerName || t('calling.unknownUser')}
         </h2>
         <p className="mb-8 text-sm text-stone-400">
-          {isVideo ? '视频通话' : '语音通话'}来电中...
+          {isVideo ? t('calling.incomingVideo') : t('calling.incomingVoice')} {t('calling.incomingLabel')}
         </p>
 
-        {/* Action buttons */}
         <div className="flex w-full items-center justify-around">
           <button
             onClick={rejectCall}
@@ -46,8 +46,8 @@ export function IncomingCallModal() {
         </div>
 
         <div className="mt-6 flex w-full justify-around text-xs text-stone-500">
-          <span>拒绝</span>
-          <span>接听</span>
+          <span>{t('calling.decline')}</span>
+          <span>{t('calling.accept')}</span>
         </div>
       </div>
     </div>

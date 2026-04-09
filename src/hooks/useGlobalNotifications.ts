@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import i18n from '@/i18n';
 
 /**
  * Global listener for new messages across all conversations.
@@ -16,7 +17,6 @@ export function useGlobalNotifications() {
   const queryClient = useQueryClient();
   const memberConvIdsRef = useRef<string[]>([]);
 
-  // Keep track of conversations the user belongs to
   useEffect(() => {
     if (!user) return;
 
@@ -30,7 +30,6 @@ export function useGlobalNotifications() {
 
     fetchConvIds();
 
-    // Refresh when conversations change
     const channel = supabase
       .channel('global-membership')
       .on(
@@ -43,7 +42,6 @@ export function useGlobalNotifications() {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  // Listen to all new messages
   useEffect(() => {
     if (!user) return;
 
@@ -61,38 +59,33 @@ export function useGlobalNotifications() {
             type: string;
           };
 
-          // Don't notify for own messages
           if (msg.sender_id === user.id) return;
-
-          // Only notify for conversations we're a member of
           if (!memberConvIdsRef.current.includes(msg.conversation_id)) return;
 
-          // Don't notify if currently viewing that chat
           const currentChat = location.pathname.match(/^\/chat\/(.+)$/)?.[1];
           if (currentChat === msg.conversation_id) return;
 
-          // Invalidate conversations list for unread count
           queryClient.invalidateQueries({ queryKey: ['conversations'] });
 
-          // Fetch sender profile for display
           const { data: sender } = await supabase
             .from('profiles')
             .select('display_name, username, avatar_url')
             .eq('id', msg.sender_id)
             .single();
 
-          const senderName = sender?.display_name || sender?.username || '新消息';
+          const t = i18n.t.bind(i18n);
+          const senderName = sender?.display_name || sender?.username || t('nav.messages');
           let preview = msg.content || '';
-          if (msg.type === 'image') preview = '[图片]';
-          else if (msg.type === 'file') preview = '[文件]';
-          else if (msg.type === 'audio') preview = '[语音]';
-          else if (msg.type === 'video') preview = '[视频]';
+          if (msg.type === 'image') preview = `[${t('chat.image')}]`;
+          else if (msg.type === 'file') preview = `[${t('chat.file')}]`;
+          else if (msg.type === 'audio') preview = `[${t('chat.audio')}]`;
+          else if (msg.type === 'video') preview = `[${t('chat.video')}]`;
           if (preview.length > 30) preview = preview.slice(0, 30) + '…';
 
           toast(senderName, {
             description: preview,
             action: {
-              label: '查看',
+              label: t('common.view'),
               onClick: () => {
                 window.location.href = `/chat/${msg.conversation_id}`;
               },
@@ -106,7 +99,6 @@ export function useGlobalNotifications() {
     return () => { supabase.removeChannel(channel); };
   }, [user, location.pathname, queryClient]);
 
-  // Listen to friend requests targeting this user
   useEffect(() => {
     if (!user) return;
 
@@ -131,11 +123,12 @@ export function useGlobalNotifications() {
             .eq('id', req.sender_id)
             .single();
 
-          const name = sender?.display_name || sender?.username || '有人';
+          const t = i18n.t.bind(i18n);
+          const name = sender?.display_name || sender?.username || '';
 
-          toast(`${name} 请求添加你为好友`, {
+          toast(t('contacts.friendRequestReceived', { name }), {
             action: {
-              label: '查看',
+              label: t('common.view'),
               onClick: () => {
                 window.location.href = '/friend-requests';
               },
@@ -149,7 +142,6 @@ export function useGlobalNotifications() {
     return () => { supabase.removeChannel(channel); };
   }, [user, queryClient]);
 
-  // Listen to group invitations (new conversation_members rows for this user)
   useEffect(() => {
     if (!user) return;
 
@@ -166,7 +158,6 @@ export function useGlobalNotifications() {
         async (payload) => {
           const member = payload.new as { conversation_id: string; role: string };
 
-          // Skip if user is the owner (they created the group themselves)
           if (member.role === 'owner') return;
 
           queryClient.invalidateQueries({ queryKey: ['conversations'] });
@@ -177,12 +168,13 @@ export function useGlobalNotifications() {
             .eq('id', member.conversation_id)
             .single();
 
-          // Only notify for group chats
           if (!conv || conv.type !== 'group') return;
 
-          toast(`你被邀请加入群聊「${conv.name || '未命名群组'}」`, {
+          const t = i18n.t.bind(i18n);
+
+          toast(t('contacts.groupInviteReceived', { name: conv.name || t('chat.groupChat') }), {
             action: {
-              label: '查看',
+              label: t('common.view'),
               onClick: () => {
                 window.location.href = `/chat/${member.conversation_id}`;
               },

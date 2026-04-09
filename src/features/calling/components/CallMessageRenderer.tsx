@@ -8,12 +8,11 @@ interface CallMessageRendererProps {
 export function CallMessageRenderer({ content }: CallMessageRendererProps) {
   if (!isCallMessage(content)) return null;
 
-  const isAudio = content.startsWith('[语音通话]');
+  const isAudio = content.startsWith('[语音通话]') || content.startsWith('[Voice Call]');
   const displayText = content
-    .replace('[语音通话] ', '')
-    .replace('[视频通话] ', '');
+    .replace(/^\[(语音通话|视频通话|Voice Call|Video Call)\]\s*/, '');
 
-  const hasDuration = displayText.includes('通话时长');
+  const hasDuration = /\d{2}:\d{2}/.test(displayText);
 
   return (
     <div className="flex items-center justify-center gap-2 py-2">
