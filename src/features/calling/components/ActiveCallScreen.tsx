@@ -65,7 +65,8 @@ export function ActiveCallScreen() {
   const hasJoinedRef = useRef(false);
   const joinAttemptRef = useRef(0);
 
-  const shouldShow = ['dialing', 'connecting', 'connected', 'reconnecting', 'ended', 'failed'].includes(callState);
+  const showStates = new Set(['dialing', 'connecting', 'connected', 'reconnecting', 'ended', 'failed']);
+  const shouldShow = showStates.has(callState);
 
   // Join 100ms room when we have a token
   useEffect(() => {
