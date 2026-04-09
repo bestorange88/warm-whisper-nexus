@@ -16,6 +16,7 @@ export function useGlobalNotifications() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const memberConvIdsRef = useRef<string[]>([]);
+  const friendRequestIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!user) return;
@@ -102,6 +103,17 @@ export function useGlobalNotifications() {
   useEffect(() => {
     if (!user) return;
 
+    const bootstrapRequestIds = async () => {
+      const { data } = await supabase
+        .from('friend_requests')
+        .select('id')
+        .eq('receiver_id', user.id)
+        .eq('status', 'pending');
+      friendRequestIdsRef.current = new Set((data ?? []).map((item) => item.id));
+    };
+
+    bootstrapRequestIds();
+
     const channel = supabase
       .channel('global-friend-requests')
       .on(
@@ -113,9 +125,11 @@ export function useGlobalNotifications() {
           filter: `receiver_id=eq.${user.id}`,
         },
         async (payload) => {
-          const req = payload.new as { sender_id: string };
+          const req = payload.new as { id: string; sender_id: string };
+          if (friendRequestIdsRef.current.has(req.id)) return;
+          friendRequestIdsRef.current.add(req.id);
 
-          queryClient.invalidateQueries({ queryKey: ['friend-requests'] });
+          queryClient.invalidateQueries({ queryKey: ['friend_requests', user.id] });
 
           const { data: sender } = await supabase
             .from('profiles')

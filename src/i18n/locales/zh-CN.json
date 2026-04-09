@@ -137,7 +137,10 @@
     "noBlockedDesc": "你没有拉黑任何用户",
     "userNotFound": "用户不存在",
     "friendRequestReceived": "{{name}} 请求添加你为好友",
-    "groupInviteReceived": "你被邀请加入群聊「{{name}}」"
+    "groupInviteReceived": "你被邀请加入群聊「{{name}}」",
+    "alreadyFriends": "你们已经是好友了",
+    "requestReceivedPending": "对方已向你发送好友申请，请前往好友请求中处理",
+    "sendRequestFailed": "发送好友申请失败，请重试"
   },
   "group": {
     "detail": "群聊详情",

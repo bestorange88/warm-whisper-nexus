@@ -40,6 +40,43 @@ export function useSendFriendRequest() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (params: { sender_id: string; receiver_id: string; message?: string }) => {
+      const [friendshipResult, sentPendingResult, receivedPendingResult] = await Promise.all([
+        supabase
+          .from('friendships')
+          .select('id')
+          .eq('user_id', params.sender_id)
+          .eq('friend_id', params.receiver_id)
+          .limit(1),
+        supabase
+          .from('friend_requests')
+          .select('id')
+          .eq('sender_id', params.sender_id)
+          .eq('receiver_id', params.receiver_id)
+          .eq('status', 'pending')
+          .limit(1),
+        supabase
+          .from('friend_requests')
+          .select('id')
+          .eq('sender_id', params.receiver_id)
+          .eq('receiver_id', params.sender_id)
+          .eq('status', 'pending')
+          .limit(1),
+      ]);
+
+      if (friendshipResult.error) throw friendshipResult.error;
+      if (sentPendingResult.error) throw sentPendingResult.error;
+      if (receivedPendingResult.error) throw receivedPendingResult.error;
+
+      if ((friendshipResult.data?.length ?? 0) > 0) {
+        throw new Error('already_friends');
+      }
+      if ((sentPendingResult.data?.length ?? 0) > 0) {
+        throw new Error('request_already_sent');
+      }
+      if ((receivedPendingResult.data?.length ?? 0) > 0) {
+        throw new Error('request_received_pending');
+      }
+
       const { data, error } = await supabase
         .from('friend_requests')
         .insert(params)
