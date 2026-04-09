@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { HMSRoomProvider } from '@100mslive/react-sdk';
 import { Toaster } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { MobileLayout } from '@/components/layout/MobileLayout';
@@ -64,11 +65,13 @@ function PageSuspense({ children }: { children: React.ReactNode }) {
 
 function AuthenticatedApp() {
   return (
-    <CallProvider>
-      <Outlet />
-      <IncomingCallModal />
-      <ActiveCallScreen />
-    </CallProvider>
+    <HMSRoomProvider>
+      <CallProvider>
+        <Outlet />
+        <IncomingCallModal />
+        <ActiveCallScreen />
+      </CallProvider>
+    </HMSRoomProvider>
   );
 }
 
