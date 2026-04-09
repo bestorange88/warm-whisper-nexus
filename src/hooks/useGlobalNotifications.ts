@@ -105,4 +105,47 @@ export function useGlobalNotifications() {
 
     return () => { supabase.removeChannel(channel); };
   }, [user, location.pathname, queryClient]);
+
+  // Listen to friend requests targeting this user
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('global-friend-requests')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'friend_requests',
+          filter: `receiver_id=eq.${user.id}`,
+        },
+        async (payload) => {
+          const req = payload.new as { sender_id: string };
+
+          queryClient.invalidateQueries({ queryKey: ['friend-requests'] });
+
+          const { data: sender } = await supabase
+            .from('profiles')
+            .select('display_name, username')
+            .eq('id', req.sender_id)
+            .single();
+
+          const name = sender?.display_name || sender?.username || '有人';
+
+          toast(`${name} 请求添加你为好友`, {
+            action: {
+              label: '查看',
+              onClick: () => {
+                window.location.href = '/friend-requests';
+              },
+            },
+            duration: 5000,
+          });
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user, queryClient]);
 }
