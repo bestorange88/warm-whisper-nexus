@@ -287,3 +287,87 @@ export function useFindOrCreateDirectChat() {
     },
   });
 }
+
+/** Recall (soft-delete) a message — only sender within 2 minutes */
+export function useRecallMessage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { messageId: string; conversationId: string; senderId: string; createdAt: string }) => {
+      const twoMinutes = 2 * 60 * 1000;
+      if (Date.now() - new Date(params.createdAt).getTime() > twoMinutes) {
+        throw new Error('只能撤回 2 分钟内的消息');
+      }
+      const { error } = await supabase
+        .from('messages')
+        .update({ is_deleted: true, content: null, media_url: null })
+        .eq('id', params.messageId)
+        .eq('sender_id', params.senderId);
+      if (error) throw error;
+    },
+    onSuccess: (_, params) => {
+      queryClient.invalidateQueries({ queryKey: ['messages', params.conversationId] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+}
+
+/** Delete a message from view (mark as deleted) */
+export function useDeleteMessage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { messageId: string; conversationId: string; senderId: string }) => {
+      const { error } = await supabase
+        .from('messages')
+        .update({ is_deleted: true })
+        .eq('id', params.messageId)
+        .eq('sender_id', params.senderId);
+      if (error) throw error;
+    },
+    onSuccess: (_, params) => {
+      queryClient.invalidateQueries({ queryKey: ['messages', params.conversationId] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+}
+
+/** Track the other user's last_read_at for read receipts in a direct chat */
+export function useReadReceipt(conversationId?: string, otherUserId?: string | null) {
+  const queryClient = useQueryClient();
+
+  // Subscribe to realtime changes on conversation_members for this conversation
+  useEffect(() => {
+    if (!conversationId || !otherUserId) return;
+    const channel = supabase
+      .channel(`read-receipt:${conversationId}:${otherUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'conversation_members',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['read-receipt', conversationId, otherUserId] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [conversationId, otherUserId, queryClient]);
+
+  return useQuery({
+    queryKey: ['read-receipt', conversationId, otherUserId],
+    queryFn: async () => {
+      if (!conversationId || !otherUserId) return null;
+      const { data, error } = await supabase
+        .from('conversation_members')
+        .select('last_read_at')
+        .eq('conversation_id', conversationId)
+        .eq('user_id', otherUserId)
+        .single();
+      if (error) return null;
+      return data?.last_read_at ?? null;
+    },
+    enabled: !!conversationId && !!otherUserId,
+  });
+}
