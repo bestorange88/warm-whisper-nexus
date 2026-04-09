@@ -27,7 +27,7 @@ export default function Conversations() {
           <span>搜索</span>
         </button>
         <button
-          onClick={() => navigate('/contacts/add')}
+          onClick={() => navigate('/add-friend')}
           className="flex h-9 w-9 items-center justify-center rounded-lg text-stone-600 hover:bg-stone-100"
         >
           <Plus className="h-5 w-5" />
@@ -43,39 +43,48 @@ export default function Conversations() {
           />
         ) : (
           <div className="divide-y divide-stone-50">
-            {conversations.map((conv) => (
-              <button
-                key={conv.id}
-                onClick={() => navigate(`/chat/${conv.id}`)}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-stone-50 active:bg-stone-100"
-              >
-                <UserAvatar
-                  src={conv.avatar_url || conv.other_user?.avatar_url}
-                  name={conv.name || conv.other_user?.display_name}
-                  size="lg"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between">
-                    <span className="truncate text-sm font-medium text-stone-900">
-                      {conv.name || conv.other_user?.display_name || '未命名会话'}
-                    </span>
-                    {conv.last_message && (
-                      <span className="ml-2 shrink-0 text-xs text-stone-400">
-                        {formatDistanceToNow(new Date(conv.last_message.created_at), { addSuffix: true, locale: zhCN })}
+            {conversations.map((conv) => {
+              const displayName = conv.type === 'direct'
+                ? (conv.other_user?.display_name || conv.other_user?.username || '未命名')
+                : (conv.name || '群聊');
+              const displayAvatar = conv.type === 'direct'
+                ? conv.other_user?.avatar_url
+                : conv.avatar_url;
+
+              return (
+                <button
+                  key={conv.id}
+                  onClick={() => navigate(`/chat/${conv.id}`)}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-stone-50 active:bg-stone-100"
+                >
+                  <UserAvatar
+                    src={displayAvatar}
+                    name={displayName}
+                    size="lg"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="truncate text-sm font-medium text-stone-900">
+                        {displayName}
                       </span>
-                    )}
+                      {conv.last_message && (
+                        <span className="ml-2 shrink-0 text-xs text-stone-400">
+                          {formatDistanceToNow(new Date(conv.last_message.created_at), { addSuffix: true, locale: zhCN })}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-0.5 truncate text-xs text-stone-400">
+                      {conv.last_message?.content || '暂无消息'}
+                    </p>
                   </div>
-                  <p className="mt-0.5 truncate text-xs text-stone-400">
-                    {conv.last_message?.content || '暂无消息'}
-                  </p>
-                </div>
-                {(conv.unread_count ?? 0) > 0 && (
-                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-medium text-white">
-                    {conv.unread_count}
-                  </span>
-                )}
-              </button>
-            ))}
+                  {(conv.unread_count ?? 0) > 0 && (
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-medium text-white">
+                      {conv.unread_count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
       </ScrollArea>
