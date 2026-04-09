@@ -8,7 +8,6 @@ const corsHeaders = {
 const HMS_ACCESS_KEY = Deno.env.get('HMS_ACCESS_KEY')!;
 const HMS_APP_SECRET = Deno.env.get('HMS_APP_SECRET')!;
 
-// Base64url encode
 function base64url(input: Uint8Array): string {
   const str = btoa(String.fromCharCode(...input));
   return str.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -74,7 +73,6 @@ async function createHmsRoom(roomName: string, managementToken: string): Promise
     body: JSON.stringify({
       name: roomName,
       description: 'Archimi Chat 1-on-1 call',
-      template_id: undefined, // Uses default template
     }),
   });
   if (!res.ok) {
@@ -98,20 +96,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    // Verify user
+    // Create anon client to verify user token
+    const supabaseAnon = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!);
     const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user: authUser }, error: authError } = await supabaseAnon.auth.getUser(token);
+    if (authError || !authUser) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    const userId = claimsData.claims.sub as string;
+    const userId = authUser.id;
+
+    // Service role client for DB operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const url = new URL(req.url);
     const action = url.pathname.split('/').pop();
@@ -125,7 +125,6 @@ Deno.serve(async (req) => {
     const body = await req.json();
 
     if (action === 'create') {
-      // Create a new call session
       const { conversation_id, callee_id, call_type } = body;
 
       if (!conversation_id || !callee_id || !call_type) {
@@ -223,7 +222,6 @@ Deno.serve(async (req) => {
       });
 
     } else if (action === 'join') {
-      // Join an existing call session (for callee)
       const { call_session_id } = body;
 
       if (!call_session_id) {
@@ -232,7 +230,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Get call session
       const { data: callSession } = await supabase
         .from('call_sessions')
         .select('*')
@@ -245,21 +242,18 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Verify user is the callee
       if (callSession.callee_id !== userId) {
         return new Response(JSON.stringify({ error: 'Not authorized to join this call' }), {
           status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
-      // Verify call is in ringing state
       if (callSession.status !== 'ringing') {
         return new Response(JSON.stringify({ error: `Cannot join call in ${callSession.status} state` }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
-      // Update status to accepted
       await supabase
         .from('call_sessions')
         .update({
@@ -268,7 +262,6 @@ Deno.serve(async (req) => {
         })
         .eq('id', call_session_id);
 
-      // Generate auth token for callee
       const calleeToken = await generateAuthToken(callSession.hms_room_id!, userId, 'guest');
 
       return new Response(JSON.stringify({
@@ -279,7 +272,6 @@ Deno.serve(async (req) => {
       });
 
     } else if (action === 'end') {
-      // End a call session
       const { call_session_id, reason } = body;
 
       if (!call_session_id) {
@@ -300,14 +292,12 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Verify user is participant
       if (callSession.caller_id !== userId && callSession.callee_id !== userId) {
         return new Response(JSON.stringify({ error: 'Not a participant of this call' }), {
           status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
-      // Already ended
       if (['ended', 'failed', 'rejected', 'cancelled', 'missed'].includes(callSession.status)) {
         return new Response(JSON.stringify({ ok: true }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -366,7 +356,6 @@ Deno.serve(async (req) => {
         content: messageContent,
       });
 
-      // Update conversation updated_at
       await supabase
         .from('conversations')
         .update({ updated_at: now })
@@ -383,7 +372,7 @@ Deno.serve(async (req) => {
     }
   } catch (err) {
     console.error('Call session error:', err);
-    return new Response(JSON.stringify({ error: err.message || 'Internal error' }), {
+    return new Response(JSON.stringify({ error: (err as Error).message || 'Internal error' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

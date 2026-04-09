@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
 import { APP_NAME_ZH, APP_TAGLINE } from '@/lib/constants';
-import { MessageCircle } from 'lucide-react';
+import logoImage from '@/assets/logo.png';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -33,56 +33,46 @@ export default function Login() {
   };
 
   return (
-    <div className="flex h-full flex-col items-center justify-center bg-white px-6">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center">
-          <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-2xl bg-brand shadow-lg">
-            <MessageCircle className="h-10 w-10 text-white" fill="white" />
-          </div>
-          <h1 className="text-2xl font-bold text-stone-900">{APP_NAME_ZH}</h1>
-          <p className="mt-1 text-sm text-stone-400">{APP_TAGLINE}</p>
-        </div>
+    <div className="flex h-full flex-col items-center justify-center bg-gradient-to-b from-orange-50 to-white px-6">
+      <div className="mb-8 flex flex-col items-center">
+        <img src={logoImage} alt="阿基米●聊" className="h-20 w-20 rounded-2xl shadow-lg" />
+        <h1 className="mt-4 text-2xl font-bold text-stone-900">{APP_NAME_ZH}</h1>
+        <p className="mt-1 text-sm text-stone-400">{APP_TAGLINE}</p>
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
-          )}
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-stone-700">邮箱</label>
-            <Input
-              type="email"
-              placeholder="请输入邮箱"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-stone-700">密码</label>
-            <Input
-              type="password"
-              placeholder="请输入密码"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? '登录中...' : '登录'}
-          </Button>
-        </form>
+      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
+        {error && (
+          <div className="rounded-lg bg-red-50 px-4 py-2 text-sm text-red-600">{error}</div>
+        )}
+        <Input
+          type="email"
+          placeholder="邮箱"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <Input
+          type="password"
+          placeholder="密码"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? '登录中...' : '登录'}
+        </Button>
+      </form>
 
-        <div className="mt-6 text-center text-sm">
-          <span className="text-stone-400">还没有账号？</span>
-          <Link to="/register" className="ml-1 text-brand hover:text-brand-dark">
-            立即注册
+      <div className="mt-6 space-y-2 text-center">
+        <p className="text-sm text-stone-500">
+          还没有账号？{' '}
+          <Link to="/register" className="font-medium text-brand hover:underline">
+            注册
           </Link>
-        </div>
-
-        <div className="mt-8 flex justify-center gap-4 text-xs text-stone-400">
-          <Link to="/terms" className="hover:text-stone-600">服务条款</Link>
-          <span>·</span>
-          <Link to="/privacy" className="hover:text-stone-600">隐私政策</Link>
+        </p>
+        <div className="flex gap-4 text-xs text-stone-400">
+          <Link to="/terms" className="hover:underline">服务条款</Link>
+          <Link to="/privacy" className="hover:underline">隐私政策</Link>
         </div>
       </div>
     </div>

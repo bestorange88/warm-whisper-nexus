@@ -1,5 +1,6 @@
 import { PageHeader } from '@/components/layout/PageHeader';
 import { APP_NAME_ZH, APP_NAME_EN, APP_VERSION, SUPPORT_EMAIL } from '@/lib/constants';
+import logoImage from '@/assets/logo.png';
 
 export default function About() {
   return (
@@ -7,14 +8,7 @@ export default function About() {
       <PageHeader title="关于我们" />
       <div className="flex-1 overflow-y-auto px-4 py-8">
         <div className="flex flex-col items-center">
-          <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-brand shadow-lg">
-            <div className="flex items-end gap-0.5">
-              <div className="h-4 w-1 rounded-full bg-white" />
-              <div className="h-6 w-1 rounded-full bg-white" />
-              <div className="h-5 w-1 rounded-full bg-white" />
-              <div className="h-3 w-1 rounded-full bg-white" />
-            </div>
-          </div>
+          <img src={logoImage} alt="阿基米●聊" className="h-20 w-20 rounded-2xl shadow-lg" />
           <h1 className="mt-4 text-xl font-bold text-stone-900">{APP_NAME_ZH}</h1>
           <p className="text-sm text-stone-400">{APP_NAME_EN}</p>
           <p className="mt-1 text-xs text-stone-300">版本 {APP_VERSION}</p>
