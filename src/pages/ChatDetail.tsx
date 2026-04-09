@@ -236,6 +236,31 @@ export default function ChatDetail() {
     }
   }, [user, conversationId, sendMessage, t]);
 
+  const handleVoiceSend = useCallback(async (blob: Blob, durationSec: number) => {
+    if (!user || !conversationId) return;
+    setUploading(true);
+    try {
+      const ext = 'webm';
+      const path = `${user.id}/${conversationId}/${Date.now()}_voice.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, blob, { contentType: blob.type });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('chat-media').getPublicUrl(path);
+      await sendMessage.mutateAsync({
+        conversation_id: conversationId,
+        sender_id: user.id,
+        type: 'audio',
+        content: `[${t('chat.voiceMessage')}]`,
+        media_url: urlData.publicUrl,
+        file_size: durationSec, // store duration in file_size for audio
+      });
+    } catch (err) {
+      console.error('Voice upload failed:', err);
+      toast.error(t('chat.uploadFailed'));
+    } finally {
+      setUploading(false);
+    }
+  }, [user, conversationId, sendMessage, t]);
+
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) uploadFile(file, 'image');
