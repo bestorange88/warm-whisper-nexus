@@ -218,13 +218,14 @@ export default function ChatDetail() {
       const path = `${user.id}/${conversationId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
       const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, file);
       if (uploadError) throw uploadError;
-      const { data: urlData } = supabase.storage.from('chat-media').getPublicUrl(path);
+      const { data: urlData } = await supabase.storage.from('chat-media').createSignedUrl(path, 60 * 60 * 24 * 365);
+      if (!urlData?.signedUrl) throw new Error('Failed to generate signed URL');
       await sendMessage.mutateAsync({
         conversation_id: conversationId,
         sender_id: user.id,
         type,
         content: type === 'image' ? `[${t('chat.image')}]` : `[${t('chat.file')}] ${file.name}`,
-        media_url: urlData.publicUrl,
+        media_url: urlData.signedUrl,
         file_name: file.name,
         file_size: file.size,
       });
@@ -244,13 +245,14 @@ export default function ChatDetail() {
       const path = `${user.id}/${conversationId}/${Date.now()}_voice.${ext}`;
       const { error: uploadError } = await supabase.storage.from('chat-media').upload(path, blob, { contentType: blob.type });
       if (uploadError) throw uploadError;
-      const { data: urlData } = supabase.storage.from('chat-media').getPublicUrl(path);
+      const { data: urlData } = await supabase.storage.from('chat-media').createSignedUrl(path, 60 * 60 * 24 * 365);
+      if (!urlData?.signedUrl) throw new Error('Failed to generate signed URL');
       await sendMessage.mutateAsync({
         conversation_id: conversationId,
         sender_id: user.id,
         type: 'audio',
         content: `[${t('chat.voiceMessage')}]`,
-        media_url: urlData.publicUrl,
+        media_url: urlData.signedUrl,
         file_size: durationSec, // store duration in file_size for audio
       });
     } catch (err) {

@@ -71,13 +71,13 @@ export function useGlobalNotifications() {
           queryClient.invalidateQueries({ queryKey: ['conversations'] });
 
           const { data: sender } = await supabase
-            .from('profiles')
+            .from('public_profiles' as any)
             .select('display_name, username, avatar_url')
             .eq('id', msg.sender_id)
             .single();
 
           const t = i18n.t.bind(i18n);
-          const senderName = sender?.display_name || sender?.username || t('nav.messages');
+          const senderName = (sender as any)?.display_name || (sender as any)?.username || t('nav.messages');
           let preview = msg.content || '';
           if (msg.type === 'image') preview = `[${t('chat.image')}]`;
           else if (msg.type === 'file') preview = `[${t('chat.file')}]`;

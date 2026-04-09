@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useProfile } from '@/hooks/useProfile';
+import { useProfile, usePublicProfile } from '@/hooks/useProfile';
 import { useSendFriendRequest, useBlockUser } from '@/hooks/useContacts';
 import { useFindOrCreateDirectChat } from '@/hooks/useConversations';
 import { UserAvatar } from '@/components/avatar/UserAvatar';
@@ -15,7 +15,15 @@ export default function UserProfile() {
   const { t } = useTranslation();
   const { userId } = useParams<{ userId: string }>();
   const { user } = useAuth();
-  const { data: profile, isLoading } = useProfile(userId);
+  const isOwnProfile = user?.id === userId;
+
+  // Use full profile for own, public profile for others
+  const { data: ownProfile, isLoading: ownLoading } = useProfile(isOwnProfile ? userId : undefined);
+  const { data: publicProfile, isLoading: pubLoading } = usePublicProfile(!isOwnProfile ? userId : undefined);
+
+  const profile = isOwnProfile ? ownProfile : publicProfile;
+  const isLoading = isOwnProfile ? ownLoading : pubLoading;
+
   const sendRequest = useSendFriendRequest();
   const blockUser = useBlockUser();
   const findOrCreateChat = useFindOrCreateDirectChat();
@@ -47,8 +55,6 @@ export default function UserProfile() {
 
   if (isLoading) return <FullPageLoading />;
   if (!profile) return <div className="p-4 text-center text-stone-400">{t('contacts.userNotFound')}</div>;
-
-  const isOwnProfile = user?.id === userId;
 
   return (
     <div className="flex h-full flex-col bg-white">

@@ -56,7 +56,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
             if (stateRef.current.callState !== 'idle') return;
 
             const { data: callerProfile } = await supabase
-              .from('profiles')
+              .from('public_profiles' as any)
               .select('display_name, avatar_url, username')
               .eq('id', session.caller_id)
               .single();
@@ -71,8 +71,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
                 calleeId: session.callee_id,
                 hmsRoomId: session.hms_room_id,
                 hmsToken: null,
-                callerName: callerProfile?.display_name || callerProfile?.username || '未知用户',
-                callerAvatar: callerProfile?.avatar_url || undefined,
+                callerName: (callerProfile as any)?.display_name || (callerProfile as any)?.username || '未知用户',
+                callerAvatar: (callerProfile as any)?.avatar_url || undefined,
               },
             });
           }
