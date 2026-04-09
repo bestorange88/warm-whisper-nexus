@@ -7,22 +7,24 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/common/EmptyState';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { useTranslation } from 'react-i18next';
 
 export default function Search() {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const { data: results, isLoading } = useSearchUsers(query);
   const navigate = useNavigate();
 
   return (
     <div className="flex h-full flex-col bg-white">
-      <PageHeader title="搜索" />
+      <PageHeader title={t('common.search')} />
       <div className="px-4 py-2">
         <div className="relative">
           <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="搜索用户名或昵称..."
+            placeholder={t('contacts.searchPlaceholder2')}
             className="pl-9"
             autoFocus
           />
@@ -32,9 +34,9 @@ export default function Search() {
         {isLoading ? (
           <LoadingSpinner className="mt-8" />
         ) : query.length < 2 ? (
-          <EmptyState icon={<SearchIcon className="h-16 w-16" />} title="输入关键词搜索" description="至少输入2个字符" />
+          <EmptyState icon={<SearchIcon className="h-16 w-16" />} title={t('contacts.searchKeyword')} description={t('contacts.minChars')} />
         ) : !results || results.length === 0 ? (
-          <EmptyState icon={<SearchIcon className="h-16 w-16" />} title="未找到用户" description="换个关键词试试" />
+          <EmptyState icon={<SearchIcon className="h-16 w-16" />} title={t('contacts.noResults')} description={t('contacts.noResultsDesc')} />
         ) : (
           <div className="divide-y divide-stone-50">
             {results.map((u) => (

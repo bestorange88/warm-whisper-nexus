@@ -10,8 +10,10 @@ import { Input } from '@/components/ui/input';
 import { FullPageLoading } from '@/components/common/LoadingSpinner';
 import { cn } from '@/lib/utils';
 import { Check } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function CreateGroup() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { data: friends, isLoading } = useFriends(user?.id);
   const createConversation = useCreateConversation();
@@ -51,19 +53,19 @@ export default function CreateGroup() {
 
   return (
     <div className="flex h-full flex-col bg-white">
-      <PageHeader title="创建群聊" rightAction={
+      <PageHeader title={t('contacts.createGroup')} rightAction={
         <Button size="sm" onClick={handleCreate} disabled={creating || !groupName.trim() || selected.size === 0}>
-          {creating ? '创建中...' : '创建'}
+          {creating ? t('group.creating') : t('group.create')}
         </Button>
       } />
       <div className="flex-1 overflow-y-auto">
         <div className="px-4 py-3">
-          <label className="mb-1.5 block text-sm font-medium text-stone-700">群名称</label>
-          <Input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="输入群名称" />
+          <label className="mb-1.5 block text-sm font-medium text-stone-700">{t('group.groupName')}</label>
+          <Input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder={t('group.groupNamePlaceholder')} />
         </div>
         <div className="px-4 py-2">
           <p className="text-xs font-medium uppercase tracking-wide text-stone-400">
-            选择成员 ({selected.size})
+            {t('group.selectMembers', { count: selected.size })}
           </p>
         </div>
         <div className="divide-y divide-stone-50">

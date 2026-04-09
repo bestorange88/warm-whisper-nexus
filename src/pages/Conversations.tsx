@@ -9,22 +9,26 @@ import { FullPageLoading } from '@/components/common/LoadingSpinner';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
+import { zhCN, enUS } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { useTranslation } from 'react-i18next';
 import type { Message, Conversation } from '@/types';
 
-function messagePreview(msg?: Message): { icon?: React.ReactNode; text: string } {
-  if (!msg) return { text: '暂无消息' };
-  if (msg.is_deleted) return { text: '[消息已撤回]' };
-  switch (msg.type) {
-    case 'image': return { icon: <Image className="h-3 w-3 shrink-0" />, text: '图片' };
-    case 'file': return { icon: <FileText className="h-3 w-3 shrink-0" />, text: msg.file_name || '文件' };
-    case 'audio': return { icon: <Phone className="h-3 w-3 shrink-0" />, text: '语音消息' };
-    case 'video': return { icon: <Phone className="h-3 w-3 shrink-0" />, text: '视频消息' };
-    case 'system': return { text: msg.content || '系统消息' };
-    default: return { text: msg.content || '' };
-  }
+function useMessagePreview() {
+  const { t } = useTranslation();
+  return (msg?: Message): { icon?: React.ReactNode; text: string } => {
+    if (!msg) return { text: t('chat.noMessages') };
+    if (msg.is_deleted) return { text: `[${t('chat.messageRecalled')}]` };
+    switch (msg.type) {
+      case 'image': return { icon: <Image className="h-3 w-3 shrink-0" />, text: t('chat.image') };
+      case 'file': return { icon: <FileText className="h-3 w-3 shrink-0" />, text: msg.file_name || t('chat.file') };
+      case 'audio': return { icon: <Phone className="h-3 w-3 shrink-0" />, text: t('chat.audio') };
+      case 'video': return { icon: <Phone className="h-3 w-3 shrink-0" />, text: t('chat.video') };
+      case 'system': return { text: msg.content || t('chat.system') };
+      default: return { text: msg.content || '' };
+    }
+  };
 }
 
 interface ConvMenuProps {
@@ -36,6 +40,7 @@ interface ConvMenuProps {
 }
 
 function ConversationContextMenu({ conv, position, onClose, onPin, onDelete }: ConvMenuProps) {
+  const { t } = useTranslation();
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
@@ -48,12 +53,12 @@ function ConversationContextMenu({ conv, position, onClose, onPin, onDelete }: C
       >
         <button onClick={onPin} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
           {conv.is_pinned
-            ? <><PinOff className="h-4 w-4" /> 取消置顶</>
-            : <><Pin className="h-4 w-4" /> 置顶会话</>
+            ? <><PinOff className="h-4 w-4" /> {t('chat.unpinConversation')}</>
+            : <><Pin className="h-4 w-4" /> {t('chat.pinConversation')}</>
           }
         </button>
         <button onClick={onDelete} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-destructive hover:bg-muted">
-          <Trash2 className="h-4 w-4" /> 删除会话
+          <Trash2 className="h-4 w-4" /> {t('chat.deleteConversation')}
         </button>
       </div>
     </>
@@ -61,12 +66,15 @@ function ConversationContextMenu({ conv, position, onClose, onPin, onDelete }: C
 }
 
 export default function Conversations() {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const { data: conversations, isLoading, refetch } = useConversations(user?.id);
   const togglePin = useTogglePin();
   const navigate = useNavigate();
   const [contextMenu, setContextMenu] = useState<{ conv: Conversation; x: number; y: number } | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const messagePreview = useMessagePreview();
+  const dateFnsLocale = i18n.language.startsWith('zh') ? zhCN : enUS;
 
   const handleTouchStart = useCallback((e: React.TouchEvent, conv: Conversation) => {
     const touch = e.touches[0];
@@ -94,9 +102,9 @@ export default function Conversations() {
         userId: user.id,
         pinned: !conv.is_pinned,
       });
-      toast.success(conv.is_pinned ? '已取消置顶' : '已置顶');
+      toast.success(conv.is_pinned ? t('chat.unpinned') : t('chat.pinned'));
     } catch {
-      toast.error('操作失败');
+      toast.error(t('chat.operationFailed'));
     }
   };
 
@@ -105,16 +113,15 @@ export default function Conversations() {
     const conv = contextMenu.conv;
     setContextMenu(null);
     try {
-      // Leave the conversation (remove membership)
       await supabase
         .from('conversation_members')
         .delete()
         .eq('conversation_id', conv.id)
         .eq('user_id', user.id);
-      toast.success('会话已删除');
+      toast.success(t('chat.conversationDeleted'));
       refetch();
     } catch {
-      toast.error('删除失败');
+      toast.error(t('chat.deleteFailed2'));
     }
   };
 
@@ -128,7 +135,7 @@ export default function Conversations() {
           className="flex h-9 flex-1 items-center gap-2 rounded-lg bg-stone-100 px-3 text-sm text-stone-400"
         >
           <Search className="h-4 w-4" />
-          <span>搜索</span>
+          <span>{t('common.search')}</span>
         </button>
         <button
           onClick={() => navigate('/add-friend')}
@@ -142,15 +149,15 @@ export default function Conversations() {
         {!conversations || conversations.length === 0 ? (
           <EmptyState
             icon={<MessageCircle className="h-16 w-16" />}
-            title="暂无会话"
-            description="添加好友开始聊天吧"
+            title={t('chat.noConversations')}
+            description={t('chat.noConversationsDesc')}
           />
         ) : (
           <div className="divide-y divide-stone-50">
             {conversations.map((conv) => {
               const displayName = conv.type === 'direct'
-                ? (conv.other_user?.display_name || conv.other_user?.username || '未命名')
-                : (conv.name || '群聊');
+                ? (conv.other_user?.display_name || conv.other_user?.username || t('chat.unnamed'))
+                : (conv.name || t('chat.groupChat'));
               const displayAvatar = conv.type === 'direct'
                 ? conv.other_user?.avatar_url
                 : conv.avatar_url;
@@ -191,7 +198,7 @@ export default function Conversations() {
                       </div>
                       {conv.last_message && (
                         <span className="ml-2 shrink-0 text-[11px] text-stone-400">
-                          {formatDistanceToNow(new Date(conv.last_message.created_at), { addSuffix: true, locale: zhCN })}
+                          {formatDistanceToNow(new Date(conv.last_message.created_at), { addSuffix: true, locale: dateFnsLocale })}
                         </span>
                       )}
                     </div>

@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { FullPageLoading } from '@/components/common/LoadingSpinner';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 export default function ReportMessage() {
+  const { t, i18n } = useTranslation();
   const { messageId } = useParams<{ messageId: string }>();
   const { user } = useAuth();
   const { data: reasons, isLoading } = useReportReasons();
@@ -44,14 +46,14 @@ export default function ReportMessage() {
   if (submitted) {
     return (
       <div className="flex h-full flex-col bg-white">
-        <PageHeader title="举报消息" />
+        <PageHeader title={t('report.reportMessage')} />
         <div className="flex flex-1 flex-col items-center justify-center p-8 text-center">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
             <span className="text-2xl">✓</span>
           </div>
-          <h2 className="text-lg font-semibold text-stone-900">举报已提交</h2>
-          <p className="mt-2 text-sm text-stone-500">感谢您的反馈，我们会尽快处理。</p>
-          <Button className="mt-6" onClick={() => navigate(-1)}>返回</Button>
+          <h2 className="text-lg font-semibold text-stone-900">{t('report.reported')}</h2>
+          <p className="mt-2 text-sm text-stone-500">{t('report.reportedDesc')}</p>
+          <Button className="mt-6" onClick={() => navigate(-1)}>{t('common.back')}</Button>
         </div>
       </div>
     );
@@ -59,9 +61,9 @@ export default function ReportMessage() {
 
   return (
     <div className="flex h-full flex-col bg-white">
-      <PageHeader title="举报消息" />
+      <PageHeader title={t('report.reportMessage')} />
       <div className="flex-1 overflow-y-auto px-4 py-4">
-        <p className="mb-4 text-sm text-stone-500">请选择举报原因：</p>
+        <p className="mb-4 text-sm text-stone-500">{t('report.selectReason')}</p>
         <div className="space-y-2">
           {reasons?.map((r) => (
             <button
@@ -74,16 +76,16 @@ export default function ReportMessage() {
                   : "border-stone-200 text-stone-700 hover:bg-stone-50"
               )}
             >
-              {r.label_zh}
+              {i18n.language.startsWith('zh') ? r.label_zh : r.label_en}
             </button>
           ))}
         </div>
         <div className="mt-4">
-          <label className="mb-1.5 block text-sm font-medium text-stone-700">补充说明（可选）</label>
-          <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="请描述具体情况..." rows={3} />
+          <label className="mb-1.5 block text-sm font-medium text-stone-700">{t('report.description')}</label>
+          <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('report.descriptionPlaceholder')} rows={3} />
         </div>
         <Button className="mt-6 w-full" onClick={handleSubmit} disabled={!selectedReason || submitting}>
-          {submitting ? '提交中...' : '提交举报'}
+          {submitting ? t('common.submitting') : t('report.submitReport')}
         </Button>
       </div>
     </div>

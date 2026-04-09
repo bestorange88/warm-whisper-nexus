@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import type { Message } from '@/types';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
@@ -26,16 +27,19 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function getMessagePreviewText(msg: Message | undefined): string {
-  if (!msg) return '[消息不存在]';
-  if (msg.is_deleted) return '[消息已撤回]';
-  switch (msg.type) {
-    case 'image': return '[图片]';
-    case 'file': return `[文件] ${msg.file_name || ''}`;
-    case 'audio': return '[语音]';
-    case 'video': return '[视频]';
-    default: return msg.content || '';
-  }
+function useMessagePreviewText() {
+  const { t } = useTranslation();
+  return (msg: Message | undefined): string => {
+    if (!msg) return `[${t('chat.messageNotFound')}]`;
+    if (msg.is_deleted) return `[${t('chat.messageRecalled')}]`;
+    switch (msg.type) {
+      case 'image': return `[${t('chat.image')}]`;
+      case 'file': return `[${t('chat.file')}] ${msg.file_name || ''}`;
+      case 'audio': return `[${t('chat.audio')}]`;
+      case 'video': return `[${t('chat.video')}]`;
+      default: return msg.content || '';
+    }
+  };
 }
 
 interface MessageMenuProps {
@@ -50,6 +54,7 @@ interface MessageMenuProps {
 }
 
 function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete, onCopy, onReply }: MessageMenuProps) {
+  const { t } = useTranslation();
   const canRecall = isOwn && Date.now() - new Date(msg.created_at).getTime() < RECALL_WINDOW_MS;
 
   useEffect(() => {
@@ -69,32 +74,33 @@ function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete,
       onClick={(e) => e.stopPropagation()}
     >
       <button onClick={onReply} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
-        <Reply className="h-4 w-4" /> 回复
+        <Reply className="h-4 w-4" /> {t('chat.reply')}
       </button>
       {msg.type === 'text' && msg.content && (
         <button onClick={onCopy} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
-          <Copy className="h-4 w-4" /> 复制
+          <Copy className="h-4 w-4" /> {t('chat.copy')}
         </button>
       )}
       {canRecall && (
         <button onClick={onRecall} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
-          <Undo2 className="h-4 w-4" /> 撤回
+          <Undo2 className="h-4 w-4" /> {t('chat.recall')}
         </button>
       )}
       {isOwn && (
         <button onClick={onDelete} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-destructive hover:bg-muted">
-          <Trash2 className="h-4 w-4" /> 删除
+          <Trash2 className="h-4 w-4" /> {t('chat.deleteMessage')}
         </button>
       )}
     </div>
   );
 }
 
-/** Quoted message block shown inside a reply bubble */
 function QuotedMessage({ replyToId, messagesMap, isOwn }: { replyToId: string; messagesMap: Map<string, Message>; isOwn: boolean }) {
+  const { t } = useTranslation();
+  const getPreview = useMessagePreviewText();
   const original = messagesMap.get(replyToId);
-  const senderName = original?.sender?.display_name || original?.sender?.username || '未知';
-  const preview = getMessagePreviewText(original);
+  const senderName = original?.sender?.display_name || original?.sender?.username || t('calling.unknownUser');
+  const preview = getPreview(original);
 
   return (
     <div
@@ -112,6 +118,7 @@ function QuotedMessage({ replyToId, messagesMap, isOwn }: { replyToId: string; m
 }
 
 export default function ChatDetail() {
+  const { t } = useTranslation();
   const { conversationId } = useParams<{ conversationId: string }>();
   const { user } = useAuth();
   const { data: conversation } = useConversation(conversationId);
@@ -131,15 +138,14 @@ export default function ChatDetail() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
+  const getPreview = useMessagePreviewText();
 
-  // Build a map for quick message lookup (for quoted messages)
   const messagesMap = useMemo(() => {
     const map = new Map<string, Message>();
     messages?.forEach((m) => map.set(m.id, m));
     return map;
   }, [messages]);
 
-  // Get other user id for direct chats
   useEffect(() => {
     if (!conversationId || !user || conversation?.type !== 'direct') return;
     supabase
@@ -160,7 +166,6 @@ export default function ChatDetail() {
     isDirectChat ? otherUserId : undefined
   );
 
-  // Mark messages as read
   useEffect(() => {
     if (!conversationId || !user) return;
     supabase
@@ -204,7 +209,7 @@ export default function ChatDetail() {
 
   const uploadFile = useCallback(async (file: File, type: 'image' | 'file') => {
     if (!user || !conversationId) return;
-    if (file.size > MAX_FILE_SIZE) { toast.error('文件大小不能超过 10MB'); return; }
+    if (file.size > MAX_FILE_SIZE) { toast.error(t('chat.fileTooLarge')); return; }
     setUploading(true);
     try {
       const ext = file.name.split('.').pop() || 'bin';
@@ -216,18 +221,18 @@ export default function ChatDetail() {
         conversation_id: conversationId,
         sender_id: user.id,
         type,
-        content: type === 'image' ? '[图片]' : `[文件] ${file.name}`,
+        content: type === 'image' ? `[${t('chat.image')}]` : `[${t('chat.file')}] ${file.name}`,
         media_url: urlData.publicUrl,
         file_name: file.name,
         file_size: file.size,
       });
     } catch (err) {
       console.error('Upload failed:', err);
-      toast.error('上传失败，请重试');
+      toast.error(t('chat.uploadFailed'));
     } finally {
       setUploading(false);
     }
-  }, [user, conversationId, sendMessage]);
+  }, [user, conversationId, sendMessage, t]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -242,7 +247,6 @@ export default function ChatDetail() {
     e.target.value = '';
   };
 
-  // Long press / context menu
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleMsgTouchStart = (e: React.TouchEvent, msg: Message) => {
     const touch = e.touches[0];
@@ -257,8 +261,8 @@ export default function ChatDetail() {
     setContextMenu(null);
     try {
       await recallMessage.mutateAsync({ messageId: msg.id, conversationId, senderId: user.id, createdAt: msg.created_at });
-      toast.success('消息已撤回');
-    } catch (err: any) { toast.error(err.message || '撤回失败'); }
+      toast.success(t('chat.recallSuccess'));
+    } catch (err: any) { toast.error(err.message || t('chat.recallFailed')); }
   };
 
   const handleDelete = async () => {
@@ -267,15 +271,15 @@ export default function ChatDetail() {
     setContextMenu(null);
     try {
       await deleteMessage.mutateAsync({ messageId: msg.id, conversationId, senderId: user.id });
-      toast.success('消息已删除');
-    } catch { toast.error('删除失败'); }
+      toast.success(t('chat.deleteSuccess'));
+    } catch { toast.error(t('chat.deleteFailed')); }
   };
 
   const handleCopy = () => {
     if (!contextMenu?.msg.content) return;
     navigator.clipboard.writeText(contextMenu.msg.content);
     setContextMenu(null);
-    toast.success('已复制');
+    toast.success(t('common.copiedToClipboard'));
   };
 
   const handleReply = () => {
@@ -293,13 +297,12 @@ export default function ChatDetail() {
   if (isLoading) return <FullPageLoading />;
 
   const chatName = isDirectChat
-    ? (otherProfile?.display_name || otherProfile?.username || '聊天')
-    : (conversation?.name || '群聊');
+    ? (otherProfile?.display_name || otherProfile?.username || t('chat.chat'))
+    : (conversation?.name || t('chat.groupChat'));
   const chatAvatar = isDirectChat ? otherProfile?.avatar_url : conversation?.avatar_url;
 
   return (
     <div className="flex h-full flex-col bg-stone-50">
-      {/* Header */}
       <header className="safe-area-top flex h-12 shrink-0 items-center gap-2 border-b border-stone-100 bg-white px-3">
         <button onClick={() => navigate(-1)} className="text-stone-600"><ArrowLeft className="h-5 w-5" /></button>
         <UserAvatar src={chatAvatar} name={chatName} size="sm" />
@@ -318,7 +321,6 @@ export default function ChatDetail() {
         )}
       </header>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-3">
         {messages?.map((msg: Message) => {
           const isOwn = msg.sender_id === user?.id;
@@ -349,7 +351,6 @@ export default function ChatDetail() {
                       isOwn ? 'rounded-tr-md bg-brand text-white' : 'rounded-tl-md bg-white text-stone-800 shadow-sm'
                     )}
                   >
-                    {/* Quoted message */}
                     {msg.reply_to && (
                       <QuotedMessage replyToId={msg.reply_to} messagesMap={messagesMap} isOwn={isOwn} />
                     )}
@@ -357,9 +358,9 @@ export default function ChatDetail() {
                     {msg.type === 'image' && msg.media_url ? (
                       <img
                         src={msg.media_url}
-                        alt="图片"
+                        alt={t('chat.image')}
                         className="max-h-60 max-w-full cursor-pointer rounded-lg object-cover"
-                        onClick={() => setPreviewFile({ url: msg.media_url!, name: '图片', type: 'image' })}
+                        onClick={() => setPreviewFile({ url: msg.media_url!, name: t('chat.image'), type: 'image' })}
                         loading="lazy"
                       />
                     ) : msg.type === 'file' && msg.media_url ? (
@@ -373,7 +374,7 @@ export default function ChatDetail() {
                           <FileText className="h-5 w-5" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{msg.file_name || '文件'}</p>
+                          <p className="truncate text-sm font-medium">{msg.file_name || t('chat.file')}</p>
                           {msg.file_size && (
                             <p className={cn('text-xs', isOwn ? 'text-white/70' : 'text-stone-400')}>{formatFileSize(msg.file_size)}</p>
                           )}
@@ -384,7 +385,6 @@ export default function ChatDetail() {
                       <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                     )}
                   </div>
-                  {/* Time + read receipt */}
                   <div className={cn('mt-0.5 flex items-center gap-1 text-xs text-stone-300', isOwn ? 'justify-end' : 'justify-start')}>
                     <span>{format(new Date(msg.created_at), 'HH:mm')}</span>
                     {isOwn && isDirectChat && (
@@ -399,7 +399,6 @@ export default function ChatDetail() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Context menu */}
       {contextMenu && (
         <MessageContextMenu
           msg={contextMenu.msg}
@@ -413,16 +412,15 @@ export default function ChatDetail() {
         />
       )}
 
-      {/* Reply preview bar */}
       {replyTo && (
         <div className="flex items-center gap-2 border-t border-stone-100 bg-stone-50 px-4 py-2">
           <Reply className="h-4 w-4 shrink-0 text-brand" />
           <div className="min-w-0 flex-1">
             <p className="text-xs font-medium text-brand">
-              回复 {replyTo.sender?.display_name || replyTo.sender?.username || ''}
+              {t('chat.replyTo', { name: replyTo.sender?.display_name || replyTo.sender?.username || '' })}
             </p>
             <p className="truncate text-xs text-stone-400">
-              {getMessagePreviewText(replyTo)}
+              {getPreview(replyTo)}
             </p>
           </div>
           <button onClick={() => setReplyTo(null)} className="shrink-0 p-1 text-stone-400 hover:text-stone-600">
@@ -431,7 +429,6 @@ export default function ChatDetail() {
         </div>
       )}
 
-      {/* Input bar */}
       <div className="safe-area-bottom shrink-0 border-t border-stone-100 bg-white px-3 py-2">
         <div className="flex items-end gap-2">
           <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
@@ -448,7 +445,7 @@ export default function ChatDetail() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="输入消息..."
+              placeholder={t('chat.inputPlaceholder')}
               rows={1}
               className="w-full resize-none rounded-2xl border-0 bg-stone-100 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
             />
@@ -465,7 +462,6 @@ export default function ChatDetail() {
         </div>
       </div>
 
-      {/* Image preview modal */}
       {previewFile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" onClick={() => setPreviewFile(null)}>
           <button className="absolute right-4 top-4 rounded-full bg-black/50 p-2 text-white" onClick={() => setPreviewFile(null)}>

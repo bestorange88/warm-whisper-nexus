@@ -14,8 +14,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
-/** Renders a single video tile for a peer */
 function PeerVideo({ peerId, isLocal, mirror }: { peerId: string; isLocal?: boolean; mirror?: boolean }) {
   const trackId = useHMSStore(selectCameraStreamByPeerID(peerId))?.id;
   const { videoRef } = useVideo({ trackId });
@@ -33,7 +33,6 @@ function PeerVideo({ peerId, isLocal, mirror }: { peerId: string; isLocal?: bool
   );
 }
 
-/** Error banner shown on call screen */
 function CallErrorBanner({ icon: Icon, message }: { icon: React.ElementType; message: string }) {
   return (
     <div className="absolute left-4 right-4 top-16 z-40 flex items-center gap-2 rounded-xl bg-red-500/90 px-4 py-3 text-white shadow-lg backdrop-blur-sm">
@@ -44,6 +43,7 @@ function CallErrorBanner({ icon: Icon, message }: { icon: React.ElementType; mes
 }
 
 export function ActiveCallScreen() {
+  const { t } = useTranslation();
   const ctx = useCallContext();
   const {
     callState, activeCall, endReason, duration, error,
@@ -68,10 +68,8 @@ export function ActiveCallScreen() {
   type ShowCallState = 'dialing' | 'connecting' | 'connected' | 'reconnecting' | 'ended' | 'failed';
   const showStates: ShowCallState[] = ['dialing', 'connecting', 'connected', 'reconnecting', 'ended', 'failed'];
   const shouldShow = showStates.includes(callState as ShowCallState);
-  // After guard, treat callState as narrowed
   const state = callState as ShowCallState;
 
-  // Join 100ms room when we have a token
   useEffect(() => {
     if (!activeCall?.hmsToken || hasJoinedRef.current) return;
     if (callState !== 'connecting' && callState !== 'dialing') return;
@@ -87,14 +85,13 @@ export function ActiveCallScreen() {
 
       const errMsg = err?.message || '';
       if (errMsg.includes('NotAllowedError') || errMsg.includes('Permission')) {
-        toast.error('麦克风/摄像头权限被拒绝，请在浏览器设置中允许');
+        toast.error(t('calling.permissionToast'));
       } else if (errMsg.includes('token') || errMsg.includes('Token') || errMsg.includes('401')) {
-        toast.error('通话令牌已过期，请重新发起通话');
+        toast.error(t('calling.tokenToast'));
       } else {
-        toast.error('连接通话失败，请检查网络后重试');
+        toast.error(t('calling.connectFailToast'));
       }
 
-      // Auto-retry once
       if (attempt <= 1 && activeCall.hmsToken) {
         setTimeout(() => {
           if (!hasJoinedRef.current && activeCall.hmsToken) {
@@ -106,37 +103,33 @@ export function ActiveCallScreen() {
         }, 2000);
       }
     });
-  }, [callState, activeCall?.hmsToken, join, activeCall?.callerName, activeCall?.calleeName]);
+  }, [callState, activeCall?.hmsToken, join, activeCall?.callerName, activeCall?.calleeName, t]);
 
-  // Detect when 100ms connects → dispatch CONNECTED
   useEffect(() => {
     if (isConnected && (callState === 'connecting' || callState === 'dialing')) {
       onHmsConnected?.();
     }
   }, [isConnected, callState, onHmsConnected]);
 
-  // Track reconnecting state from HMS
   useEffect(() => {
     if (isReconnecting && callState === 'connected') {
       setShowReconnecting(true);
-      toast.warning('网络不稳定，正在重新连接...');
+      toast.warning(t('calling.reconnecting'));
     } else if (!isReconnecting && showReconnecting) {
       setShowReconnecting(false);
       if (isConnected) {
-        toast.success('已重新连接');
+        toast.success(t('calling.reconnected'));
       }
     }
-  }, [isReconnecting, callState, isConnected, showReconnecting]);
+  }, [isReconnecting, callState, isConnected, showReconnecting, t]);
 
-  // Detect HMS disconnect while call should be active
   useEffect(() => {
     if (roomState === 'Disconnected' && hasJoinedRef.current && callState === 'connected') {
-      toast.error('通话连接已断开');
+      toast.error(t('calling.disconnected'));
       endCall();
     }
-  }, [roomState, callState, endCall]);
+  }, [roomState, callState, endCall, t]);
 
-  // Leave room when call ends
   useEffect(() => {
     if ((callState === 'ended' || callState === 'failed') && hasJoinedRef.current) {
       leave();
@@ -145,7 +138,6 @@ export function ActiveCallScreen() {
     }
   }, [callState, leave]);
 
-  // Timer for connected state
   useEffect(() => {
     if (callState === 'connected') {
       connectedAtRef.current = Date.now();
@@ -165,7 +157,6 @@ export function ActiveCallScreen() {
     };
   }, [callState]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (hasJoinedRef.current) {
@@ -185,20 +176,20 @@ export function ActiveCallScreen() {
 
   const getStatusText = () => {
     switch (state) {
-      case 'dialing': return '正在呼叫...';
-      case 'connecting': return '连接中...';
+      case 'dialing': return t('calling.calling');
+      case 'connecting': return t('calling.connecting');
       case 'connected': return formatDuration(elapsedSeconds);
-      case 'reconnecting': return '重新连接中...';
+      case 'reconnecting': return t('calling.reconnecting');
       case 'ended':
         switch (endReason) {
-          case 'completed': return duration > 0 ? `通话结束 ${formatDuration(duration)}` : '通话已结束';
-          case 'rejected': return '对方已拒绝';
-          case 'cancelled': return '已取消';
-          case 'missed': return '对方未接听';
-          case 'permission_denied': return '权限被拒绝';
-          default: return '通话已结束';
+          case 'completed': return duration > 0 ? `${t('calling.callEnded')} ${formatDuration(duration)}` : t('calling.callEnded');
+          case 'rejected': return t('calling.declined');
+          case 'cancelled': return t('calling.cancelled');
+          case 'missed': return t('calling.noAnswer');
+          case 'permission_denied': return t('calling.permissionDenied');
+          default: return t('calling.callEnded');
         }
-      case 'failed': return error || '通话失败';
+      case 'failed': return error || t('calling.callFailed');
       default: return '';
     }
   };
@@ -214,16 +205,15 @@ export function ActiveCallScreen() {
   const isActive = ['dialing', 'connecting', 'connected', 'reconnecting'].includes(state);
   const isEnded = state === 'ended' || state === 'failed';
 
-  // Determine error banner
   const getErrorBanner = () => {
     if (showReconnecting) {
-      return <CallErrorBanner icon={WifiOff} message="网络不稳定，正在重新连接..." />;
+      return <CallErrorBanner icon={WifiOff} message={t('calling.reconnecting')} />;
     }
     if (state === 'failed' && error?.includes('权限')) {
-      return <CallErrorBanner icon={ShieldAlert} message="请在设置中允许麦克风和摄像头权限" />;
+      return <CallErrorBanner icon={ShieldAlert} message={t('calling.permissionBanner')} />;
     }
     if (state === 'failed') {
-      return <CallErrorBanner icon={AlertTriangle} message={error || '通话失败'} />;
+      return <CallErrorBanner icon={AlertTriangle} message={error || t('calling.callFailed')} />;
     }
     return null;
   };
@@ -232,10 +222,8 @@ export function ActiveCallScreen() {
     <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-b from-[#1a1a2e] to-[#16213e]">
       <div className="safe-area-top" />
 
-      {/* Error banner */}
       {getErrorBanner()}
 
-      {/* Main content area */}
       <div className="flex flex-1 flex-col items-center justify-center">
         {isVideo && callState === 'connected' && remotePeer ? (
           <div className="absolute inset-0">
@@ -256,7 +244,7 @@ export function ActiveCallScreen() {
               <UserAvatar src={remoteAvatar} name={remoteName} size="xl" />
             </div>
             <h2 className="mb-2 text-2xl font-semibold text-white">
-              {remoteName || '未知用户'}
+              {remoteName || t('calling.unknownUser')}
             </h2>
             <p className={cn(
               'text-sm',
@@ -268,25 +256,22 @@ export function ActiveCallScreen() {
           </div>
         )}
 
-        {/* Overlay name/status when remote video is showing */}
         {isVideo && callState === 'connected' && remotePeer && (
           <div className="absolute left-0 right-0 top-16 z-10 text-center">
             <h2 className="text-lg font-semibold text-white drop-shadow-lg">
-              {remoteName || '未知用户'}
+              {remoteName || t('calling.unknownUser')}
             </h2>
             <p className="text-sm text-green-400 drop-shadow-lg">{getStatusText()}</p>
           </div>
         )}
       </div>
 
-      {/* Local video preview */}
       {isVideo && callState === 'connected' && isVideoEnabled && localPeer && (
         <div className="absolute right-4 top-16 z-20 h-40 w-28 overflow-hidden rounded-xl bg-stone-800 shadow-lg">
           <PeerVideo peerId={localPeer.id} isLocal mirror />
         </div>
       )}
 
-      {/* Control buttons */}
       {isActive && (
         <div className="safe-area-bottom relative z-30 pb-10">
           <div className="flex items-center justify-center gap-6">
@@ -326,10 +311,9 @@ export function ActiveCallScreen() {
         </div>
       )}
 
-      {/* Ended state - show close button for failed calls */}
       {isEnded && (
         <div className="safe-area-bottom pb-20">
-          <p className="text-center text-sm text-white/40">通话即将关闭...</p>
+          <p className="text-center text-sm text-white/40">{t('calling.closingSoon')}</p>
         </div>
       )}
     </div>
