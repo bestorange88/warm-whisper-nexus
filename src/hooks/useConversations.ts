@@ -67,7 +67,8 @@ export function useConversations(userId?: string) {
           }
         }
 
-        // Get unread count
+        // Get unread count and pinned status
+        c.is_pinned = pinnedSet.has(c.id);
         const { data: membership } = await supabase
           .from('conversation_members')
           .select('last_read_at')
