@@ -193,7 +193,7 @@ export function useMessages(conversationId?: string) {
 export function useSendMessage() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (msg: { conversation_id: string; sender_id: string; type: string; content?: string; media_url?: string; file_name?: string; file_size?: number }) => {
+    mutationFn: async (msg: { conversation_id: string; sender_id: string; type: string; content?: string; media_url?: string; file_name?: string; file_size?: number; reply_to?: string }) => {
       const { data, error } = await supabase
         .from('messages')
         .insert(msg)
