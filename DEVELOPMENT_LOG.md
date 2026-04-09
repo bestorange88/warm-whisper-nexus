@@ -1,5 +1,18 @@
 # Archimi Chat 开发日志
 
+## 2026-04-09 (下午) - 100ms 音视频通话
+- 输出7份设计文档（架构、状态机、数据库、UI流程、iOS权限、审核计划、V1限制）
+- 创建 call_sessions 表 + RLS + Realtime + 索引
+- 部署 call-session Edge Function（create/join/end）
+- 安装 @100mslive/react-sdk
+- 实现通话状态机 (callStateMachine.ts)
+- 实现 CallProvider 全局 Context + Realtime 监听
+- 实现来电弹层 IncomingCallModal
+- 实现通话界面 ActiveCallScreen（静音/摄像头/挂断）
+- 实现通话消息渲染 CallMessageRenderer
+- ChatDetail 集成通话按钮（仅单聊显示）
+- App.tsx 包裹 CallProvider + 全局通话覆盖层
+
 ## 2026-04-09
 - 项目初始化，从 GitHub 克隆代码并配置
 - 关闭密码泄露检测(HIBP)，注册密码仅需大于6位
