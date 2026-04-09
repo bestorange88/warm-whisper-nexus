@@ -137,7 +137,10 @@
     "noBlockedDesc": "You haven't blocked anyone",
     "userNotFound": "User not found",
     "friendRequestReceived": "{{name}} sent you a friend request",
-    "groupInviteReceived": "You've been invited to join \"{{name}}\""
+    "groupInviteReceived": "You've been invited to join \"{{name}}\"",
+    "alreadyFriends": "You are already friends",
+    "requestReceivedPending": "This user has already sent you a friend request. Please review it in Friend Requests.",
+    "sendRequestFailed": "Failed to send friend request. Please try again."
   },
   "group": {
     "detail": "Group Details",

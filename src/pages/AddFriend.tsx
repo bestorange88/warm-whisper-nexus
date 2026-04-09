@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/common/EmptyState';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 
 export default function AddFriend() {
   const { t } = useTranslation();
@@ -23,8 +24,13 @@ export default function AddFriend() {
     try {
       await sendRequest.mutateAsync({ sender_id: user.id, receiver_id: receiverId });
       setSentIds((prev) => new Set(prev).add(receiverId));
-    } catch {
-      // handled by mutation
+      toast.success(t('contacts.requestSent'));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      if (message === 'already_friends') toast.error(t('contacts.alreadyFriends'));
+      else if (message === 'request_already_sent') toast.error(t('contacts.requestSentAlready'));
+      else if (message === 'request_received_pending') toast.error(t('contacts.requestReceivedPending'));
+      else toast.error(t('contacts.sendRequestFailed'));
     }
   };
 
