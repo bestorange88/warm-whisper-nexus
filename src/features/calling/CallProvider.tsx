@@ -13,6 +13,7 @@ interface CallContextValue extends CallMachineState {
   cancelCall: () => void;
   endCall: () => void;
   resetCall: () => void;
+  onHmsConnected: () => void;
 }
 
 const CallContext = createContext<CallContextValue | null>(null);
@@ -52,10 +53,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
           if (!session) return;
 
           if (payload.eventType === 'INSERT' && session.status === 'ringing') {
-            // Incoming call
             if (stateRef.current.callState !== 'idle') return;
 
-            // Fetch caller profile
             const { data: callerProfile } = await supabase
               .from('profiles')
               .select('display_name, avatar_url, username')
@@ -96,7 +95,6 @@ export function CallProvider({ children }: { children: ReactNode }) {
       )
       .subscribe();
 
-    // Also listen for caller-side events (when we're the caller)
     const callerChannel = supabase
       .channel('caller-events')
       .on(
@@ -177,7 +175,6 @@ export function CallProvider({ children }: { children: ReactNode }) {
       payload: { callType, conversationId, calleeId, calleeName, calleeAvatar },
     });
 
-    // Request permissions
     const granted = await requestMediaPermissions(callType);
     if (!granted) {
       dispatch({ type: 'PERMISSION_DENIED' });
@@ -185,7 +182,6 @@ export function CallProvider({ children }: { children: ReactNode }) {
     }
     dispatch({ type: 'PERMISSION_GRANTED' });
 
-    // Create session
     try {
       const result = await createCallSession({
         conversation_id: conversationId,
@@ -210,7 +206,6 @@ export function CallProvider({ children }: { children: ReactNode }) {
 
     const { callSessionId, callType } = stateRef.current.activeCall;
 
-    // Request permissions
     const granted = await requestMediaPermissions(callType);
     if (!granted) {
       await endCallSession(callSessionId, 'permission_denied').catch(console.error);
@@ -253,6 +248,13 @@ export function CallProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'RESET' });
   }, []);
 
+  /** Called by ActiveCallScreen when 100ms room is connected */
+  const onHmsConnected = useCallback(() => {
+    if (stateRef.current.callState === 'connecting' || stateRef.current.callState === 'dialing') {
+      dispatch({ type: 'CONNECTED' });
+    }
+  }, []);
+
   return (
     <CallContext.Provider value={{
       ...state,
@@ -262,6 +264,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       cancelCall,
       endCall,
       resetCall,
+      onHmsConnected,
     }}>
       {children}
     </CallContext.Provider>
