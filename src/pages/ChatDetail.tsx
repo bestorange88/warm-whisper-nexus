@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical, X, FileText, Download, Loader2, Check, CheckCheck, Copy, Trash2, Undo2, Reply } from 'lucide-react';
+import { VoiceRecorder } from '@/components/chat/VoiceRecorder';
+import { VoicePlayer } from '@/components/chat/VoicePlayer';
 import { useAuth } from '@/hooks/useAuth';
 import { useMessages, useSendMessage, useConversation, useRecallMessage, useDeleteMessage, useReadReceipt } from '@/hooks/useConversations';
 import { useProfile } from '@/hooks/useProfile';
