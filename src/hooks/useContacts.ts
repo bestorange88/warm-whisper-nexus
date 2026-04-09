@@ -7,12 +7,23 @@ export function useFriends(userId?: string) {
     queryKey: ['friends', userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await supabase
+      const { data: friendships, error } = await supabase
         .from('friendships')
-        .select('*, friend:profiles!friendships_friend_id_fkey(*)')
+        .select('*')
         .eq('user_id', userId);
       if (error) throw error;
-      return (data || []) as unknown as Friendship[];
+      if (!friendships || friendships.length === 0) return [];
+
+      const friendIds = friendships.map((f) => f.friend_id);
+      const { data: profiles } = await supabase
+        .from('public_profiles' as any)
+        .select('*')
+        .in('id', friendIds);
+
+      return friendships.map((f) => ({
+        ...f,
+        friend: (profiles as any[])?.find((p: any) => p.id === f.friend_id),
+      })) as unknown as Friendship[];
     },
     enabled: !!userId,
   });
@@ -23,14 +34,25 @@ export function useFriendRequests(userId?: string) {
     queryKey: ['friend_requests', userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await supabase
+      const { data: requests, error } = await supabase
         .from('friend_requests')
-        .select('*, sender:profiles!friend_requests_sender_id_fkey(*)')
+        .select('*')
         .eq('receiver_id', userId)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data || []) as unknown as FriendRequest[];
+      if (!requests || requests.length === 0) return [];
+
+      const senderIds = requests.map((r) => r.sender_id);
+      const { data: profiles } = await supabase
+        .from('public_profiles' as any)
+        .select('*')
+        .in('id', senderIds);
+
+      return requests.map((r) => ({
+        ...r,
+        sender: (profiles as any[])?.find((p: any) => p.id === r.sender_id),
+      })) as unknown as FriendRequest[];
     },
     enabled: !!userId,
   });
@@ -158,12 +180,23 @@ export function useBlocks(userId?: string) {
     queryKey: ['blocks', userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await supabase
+      const { data: blocks, error } = await supabase
         .from('blocks')
-        .select('*, blocked_user:profiles!blocks_blocked_id_fkey(*)')
+        .select('*')
         .eq('blocker_id', userId);
       if (error) throw error;
-      return (data || []) as unknown as Block[];
+      if (!blocks || blocks.length === 0) return [];
+
+      const blockedIds = blocks.map((b) => b.blocked_id);
+      const { data: profiles } = await supabase
+        .from('public_profiles' as any)
+        .select('*')
+        .in('id', blockedIds);
+
+      return blocks.map((b) => ({
+        ...b,
+        blocked_user: (profiles as any[])?.find((p: any) => p.id === b.blocked_id),
+      })) as unknown as Block[];
     },
     enabled: !!userId,
   });
