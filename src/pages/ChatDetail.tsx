@@ -448,7 +448,10 @@ export default function ChatDetail() {
       <header className="safe-area-top flex h-12 shrink-0 items-center gap-2 border-b border-stone-100 bg-white px-3">
         <button onClick={() => navigate(-1)} className="text-stone-600"><ArrowLeft className="h-5 w-5" /></button>
         <UserAvatar src={chatAvatar} name={chatName} size="sm" />
-        <h1 className="flex-1 truncate text-base font-semibold text-stone-900">{chatName}</h1>
+        <h1 className="flex-1 truncate text-base font-semibold text-stone-900">
+          {chatName}
+          {isDirectChat && canEncrypt && <Lock className="ml-1 inline h-3.5 w-3.5 text-green-500" />}
+        </h1>
         <button onClick={() => setSearchOpen(prev => !prev)} className="p-1.5 text-stone-500 hover:text-brand"><SearchIcon className="h-5 w-5" /></button>
         {isDirectChat && (
           <>
