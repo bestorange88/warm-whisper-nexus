@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { UserPlus, Users, Bell, MessageCircle } from 'lucide-react';
+import { UserPlus, Users, Bell, MessageCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFriends, useFriendRequests } from '@/hooks/useContacts';
 import { useFindOrCreateDirectChat } from '@/hooks/useConversations';
@@ -9,6 +9,7 @@ import { FullPageLoading } from '@/components/common/LoadingSpinner';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
+import { useState } from 'react';
 
 export default function Contacts() {
   const { t } = useTranslation();
@@ -18,13 +19,19 @@ export default function Contacts() {
   const findOrCreateChat = useFindOrCreateDirectChat();
   const navigate = useNavigate();
   const pendingCount = requests?.length ?? 0;
+  const [chattingWith, setChattingWith] = useState<string | null>(null);
 
   const handleStartChat = async (friendId: string) => {
-    if (!user) return;
+    if (!user || chattingWith) return;
+    setChattingWith(friendId);
     try {
       const conv = await findOrCreateChat.mutateAsync({ currentUserId: user.id, otherUserId: friendId });
       navigate(`/chat/${conv.id}`);
-    } catch (err) { console.error('Failed to start chat:', err); }
+    } catch (err) {
+      console.error('Failed to start chat:', err);
+    } finally {
+      setChattingWith(null);
+    }
   };
 
   if (isLoading) return <FullPageLoading />;
@@ -54,20 +61,27 @@ export default function Contacts() {
           <EmptyState icon={<Users className="h-16 w-16" />} title={t('contacts.noContacts')} description={t('contacts.noContactsDesc')} />
         ) : (
           <div className="divide-y divide-stone-50">
-            {friends.map((friendship) => (
-              <div key={friendship.id} className="flex w-full items-center gap-3 px-4 py-3">
-                <button onClick={() => navigate(`/profile/${friendship.friend_id}`)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                  <UserAvatar src={friendship.friend?.avatar_url} name={friendship.friend?.display_name} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-stone-900">{friendship.friend?.display_name || friendship.friend?.username}</p>
-                    <p className="truncate text-xs text-stone-400">{friendship.friend?.bio || ''}</p>
-                  </div>
-                </button>
-                <button onClick={() => handleStartChat(friendship.friend_id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 hover:text-brand">
-                  <MessageCircle className="h-5 w-5" />
-                </button>
-              </div>
-            ))}
+            {friends.map((friendship) => {
+              const isChatting = chattingWith === friendship.friend_id;
+              return (
+                <div key={friendship.id} className="flex w-full items-center gap-3 px-4 py-3">
+                  <button onClick={() => navigate(`/profile/${friendship.friend_id}`)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                    <UserAvatar src={friendship.friend?.avatar_url} name={friendship.friend?.display_name} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-stone-900">{friendship.friend?.display_name || friendship.friend?.username}</p>
+                      <p className="truncate text-xs text-stone-400">{friendship.friend?.bio || ''}</p>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => handleStartChat(friendship.friend_id)}
+                    disabled={!!chattingWith}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 hover:text-brand disabled:pointer-events-none disabled:opacity-50"
+                  >
+                    {isChatting ? <Loader2 className="h-5 w-5 animate-spin" /> : <MessageCircle className="h-5 w-5" />}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </ScrollArea>
