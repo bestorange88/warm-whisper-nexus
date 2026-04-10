@@ -233,11 +233,19 @@ export default function ChatDetail() {
 
     const replyToId = replyTo?.id;
     setReplyTo(null);
+
+    // E2EE: encrypt text messages in direct chats
+    let finalContent = content;
+    if (isDirectChat && canEncrypt) {
+      const encrypted = await encrypt(content);
+      if (encrypted) finalContent = encrypted;
+    }
+
     await sendMessage.mutateAsync({
       conversation_id: conversationId,
       sender_id: user.id,
       type: 'text',
-      content,
+      content: finalContent,
       ...(replyToId ? { reply_to: replyToId } : {}),
     });
   };
