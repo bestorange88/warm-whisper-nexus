@@ -550,7 +550,7 @@ export default function ChatDetail() {
                         isOwn={isOwn}
                       />
                     ) : (
-                      <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                      <DecryptedText content={msg.content} decrypt={decrypt} />
                     )}
                     {msg.is_edited && (
                       <span className={cn('text-[10px] italic', isOwn ? 'text-white/60' : 'text-stone-400')}>
