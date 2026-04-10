@@ -102,7 +102,21 @@
     "voiceMessage": "Voice message",
     "recording": "Recording...",
     "holdToRecord": "Record voice message",
-    "micPermissionDenied": "Microphone access denied. Please allow in browser settings."
+    "micPermissionDenied": "Microphone access denied. Please allow in browser settings.",
+    "typing": "typing...",
+    "typingMultiple": "{{names}} are typing...",
+    "forward": "Forward",
+    "forwardTo": "Forward to",
+    "forwardSuccess": "Forwarded",
+    "forwardFailed": "Forward failed",
+    "edit": "Edit",
+    "editMessage": "Edit message",
+    "editSuccess": "Message edited",
+    "editFailed": "Edit failed",
+    "edited": "(edited)",
+    "searchMessages": "Search messages",
+    "searchMessagesPlaceholder": "Search chat history...",
+    "noSearchResults": "No messages found"
   },
   "contacts": {
     "friendRequests": "Friend Requests",

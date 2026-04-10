@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical, X, FileText, Download, Loader2, Check, CheckCheck, Copy, Trash2, Undo2, Reply } from 'lucide-react';
+import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical, X, FileText, Download, Loader2, Check, CheckCheck, Copy, Trash2, Undo2, Reply, Pencil, Forward, Search as SearchIcon, Lock } from 'lucide-react';
 import { VoiceRecorder } from '@/components/chat/VoiceRecorder';
 import { VoicePlayer } from '@/components/chat/VoicePlayer';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,7 +17,12 @@ import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
+import { useTypingIndicator } from '@/hooks/useTypingIndicator';
+import { useE2EESetup, useE2EEChat } from '@/hooks/useE2EE';
+import { isEncryptedPayload } from '@/lib/e2ee/crypto';
 import type { Message } from '@/types';
+
+
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -53,11 +58,14 @@ interface MessageMenuProps {
   onDelete: () => void;
   onCopy: () => void;
   onReply: () => void;
+  onEdit: () => void;
+  onForward: () => void;
 }
 
-function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete, onCopy, onReply }: MessageMenuProps) {
+function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete, onCopy, onReply, onEdit, onForward }: MessageMenuProps) {
   const { t } = useTranslation();
   const canRecall = isOwn && Date.now() - new Date(msg.created_at).getTime() < RECALL_WINDOW_MS;
+  const canEdit = isOwn && msg.type === 'text' && msg.content;
 
   useEffect(() => {
     const handler = () => onClose();
@@ -83,6 +91,14 @@ function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete,
           <Copy className="h-4 w-4" /> {t('chat.copy')}
         </button>
       )}
+      {canEdit && (
+        <button onClick={onEdit} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
+          <Pencil className="h-4 w-4" /> {t('chat.edit')}
+        </button>
+      )}
+      <button onClick={onForward} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
+        <Forward className="h-4 w-4" /> {t('chat.forward')}
+      </button>
       {canRecall && (
         <button onClick={onRecall} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
           <Undo2 className="h-4 w-4" /> {t('chat.recall')}
@@ -119,6 +135,20 @@ function QuotedMessage({ replyToId, messagesMap, isOwn }: { replyToId: string; m
   );
 }
 
+/** Async-decrypting text component */
+function DecryptedText({ content, decrypt: decryptFn }: { content: string | null; decrypt: (c: string) => Promise<string> }) {
+  const [text, setText] = useState(content || '');
+  useEffect(() => {
+    if (!content) return;
+    if (isEncryptedPayload(content)) {
+      decryptFn(content).then(setText);
+    } else {
+      setText(content);
+    }
+  }, [content, decryptFn]);
+  return <p className="whitespace-pre-wrap break-words">{text}</p>;
+}
+
 export default function ChatDetail() {
   const { t } = useTranslation();
   const { conversationId } = useParams<{ conversationId: string }>();
@@ -135,12 +165,21 @@ export default function ChatDetail() {
   const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ msg: Message; x: number; y: number } | null>(null);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [editingMsg, setEditingMsg] = useState<Message | null>(null);
+  const [forwardMsg, setForwardMsg] = useState<Message | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
   const getPreview = useMessagePreviewText();
+
+  const { isOtherTyping, typingUsers: typingDisplayNames, sendTyping } = useTypingIndicator(conversationId, user?.id);
+
+  // E2EE setup
+  useE2EESetup(user?.id);
 
   const messagesMap = useMemo(() => {
     const map = new Map<string, Message>();
@@ -163,6 +202,7 @@ export default function ChatDetail() {
   const { data: otherProfile } = useProfile(conversation?.type === 'direct' ? otherUserId ?? undefined : undefined);
 
   const isDirectChat = conversation?.type === 'direct';
+  const { encrypt, decrypt, canEncrypt } = useE2EEChat(user?.id, isDirectChat ? otherUserId : null);
   const { data: otherLastRead } = useReadReceipt(
     isDirectChat ? conversationId : undefined,
     isDirectChat ? otherUserId : undefined
@@ -186,15 +226,47 @@ export default function ChatDetail() {
     if (!input.trim() || !user || !conversationId) return;
     const content = input.trim();
     setInput('');
+
+    // If editing a message, update it instead of sending new
+    if (editingMsg) {
+      const msgId = editingMsg.id;
+      setEditingMsg(null);
+      try {
+        const { error } = await supabase
+          .from('messages')
+          .update({ content, is_edited: true })
+          .eq('id', msgId)
+          .eq('sender_id', user.id);
+        if (error) throw error;
+        toast.success(t('chat.editSuccess'));
+      } catch {
+        toast.error(t('chat.editFailed'));
+      }
+      return;
+    }
+
     const replyToId = replyTo?.id;
     setReplyTo(null);
+
+    // E2EE: encrypt text messages in direct chats
+    let finalContent = content;
+    if (isDirectChat && canEncrypt) {
+      const encrypted = await encrypt(content);
+      if (encrypted) finalContent = encrypted;
+    }
+
     await sendMessage.mutateAsync({
       conversation_id: conversationId,
       sender_id: user.id,
       type: 'text',
-      content,
+      content: finalContent,
       ...(replyToId ? { reply_to: replyToId } : {}),
     });
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    sendTyping(otherProfile?.display_name || otherProfile?.username);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -318,10 +390,51 @@ export default function ChatDetail() {
     inputRef.current?.focus();
   };
 
+  const handleEdit = () => {
+    if (!contextMenu) return;
+    setEditingMsg(contextMenu.msg);
+    setInput(contextMenu.msg.content || '');
+    setReplyTo(null);
+    setContextMenu(null);
+    inputRef.current?.focus();
+  };
+
+  const handleForward = () => {
+    if (!contextMenu) return;
+    setForwardMsg(contextMenu.msg);
+    setContextMenu(null);
+  };
+
+  const handleForwardTo = async (targetConvId: string) => {
+    if (!forwardMsg || !user) return;
+    try {
+      await sendMessage.mutateAsync({
+        conversation_id: targetConvId,
+        sender_id: user.id,
+        type: forwardMsg.type as string,
+        content: forwardMsg.content || undefined,
+        media_url: forwardMsg.media_url || undefined,
+        file_name: forwardMsg.file_name || undefined,
+        file_size: forwardMsg.file_size || undefined,
+      });
+      toast.success(t('chat.forwardSuccess'));
+      setForwardMsg(null);
+    } catch {
+      toast.error(t('chat.forwardFailed'));
+    }
+  };
+
   const isMessageRead = useCallback((msg: Message) => {
     if (!isDirectChat || !otherLastRead) return false;
     return new Date(msg.created_at) <= new Date(otherLastRead);
   }, [isDirectChat, otherLastRead]);
+
+  const filteredMessages = useMemo(() => {
+    if (!messages) return [];
+    if (!searchQuery.trim()) return messages;
+    const q = searchQuery.toLowerCase();
+    return messages.filter(m => m.content?.toLowerCase().includes(q));
+  }, [messages, searchQuery]);
 
   if (isLoading) return <FullPageLoading />;
 
@@ -335,7 +448,11 @@ export default function ChatDetail() {
       <header className="safe-area-top flex h-12 shrink-0 items-center gap-2 border-b border-stone-100 bg-white px-3">
         <button onClick={() => navigate(-1)} className="text-stone-600"><ArrowLeft className="h-5 w-5" /></button>
         <UserAvatar src={chatAvatar} name={chatName} size="sm" />
-        <h1 className="flex-1 truncate text-base font-semibold text-stone-900">{chatName}</h1>
+        <h1 className="flex-1 truncate text-base font-semibold text-stone-900">
+          {chatName}
+          {isDirectChat && canEncrypt && <Lock className="ml-1 inline h-3.5 w-3.5 text-green-500" />}
+        </h1>
+        <button onClick={() => setSearchOpen(prev => !prev)} className="p-1.5 text-stone-500 hover:text-brand"><SearchIcon className="h-5 w-5" /></button>
         {isDirectChat && (
           <>
             <button onClick={() => handleCall('audio')} className="p-1.5 text-stone-500 hover:text-brand"><Phone className="h-5 w-5" /></button>
@@ -350,8 +467,27 @@ export default function ChatDetail() {
         )}
       </header>
 
+      {searchOpen && (
+        <div className="flex items-center gap-2 border-b border-stone-100 bg-white px-3 py-2">
+          <SearchIcon className="h-4 w-4 text-stone-400" />
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('chat.searchMessagesPlaceholder')}
+            className="flex-1 bg-transparent text-sm outline-none placeholder:text-stone-400"
+            autoFocus
+          />
+          <button onClick={() => { setSearchOpen(false); setSearchQuery(''); }} className="p-1 text-stone-400">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto px-4 py-3">
-        {messages?.map((msg: Message) => {
+        {searchQuery && filteredMessages.length === 0 ? (
+          <p className="py-8 text-center text-sm text-stone-400">{t('chat.noSearchResults')}</p>
+        ) : null}
+        {filteredMessages.map((msg: Message) => {
           const isOwn = msg.sender_id === user?.id;
 
           if (msg.type === 'system' && isCallMessage(msg.content)) {
@@ -417,7 +553,12 @@ export default function ChatDetail() {
                         isOwn={isOwn}
                       />
                     ) : (
-                      <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                      <DecryptedText content={msg.content} decrypt={decrypt} />
+                    )}
+                    {msg.is_edited && (
+                      <span className={cn('text-[10px] italic', isOwn ? 'text-white/60' : 'text-stone-400')}>
+                        {t('chat.edited')}
+                      </span>
                     )}
                   </div>
                   <div className={cn('mt-0.5 flex items-center gap-1 text-xs text-stone-300', isOwn ? 'justify-end' : 'justify-start')}>
@@ -431,6 +572,18 @@ export default function ChatDetail() {
             </div>
           );
         })}
+        {isOtherTyping && (
+          <div className="mb-3 flex justify-start">
+            <div className="flex max-w-[75%] gap-2">
+              <div className="rounded-2xl rounded-tl-md bg-white px-3.5 py-2 text-sm text-stone-400 shadow-sm">
+                {typingDisplayNames.length > 0
+                  ? t('chat.typingMultiple', { names: typingDisplayNames.join(', ') })
+                  : t('chat.typing')
+                }
+              </div>
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -444,10 +597,35 @@ export default function ChatDetail() {
           onDelete={handleDelete}
           onCopy={handleCopy}
           onReply={handleReply}
+          onEdit={handleEdit}
+          onForward={handleForward}
         />
       )}
 
-      {replyTo && (
+      {/* Forward modal */}
+      {forwardMsg && (
+        <ForwardModal
+          msg={forwardMsg}
+          userId={user?.id}
+          onForward={handleForwardTo}
+          onClose={() => setForwardMsg(null)}
+        />
+      )}
+
+      {editingMsg && (
+        <div className="flex items-center gap-2 border-t border-stone-100 bg-stone-50 px-4 py-2">
+          <Pencil className="h-4 w-4 shrink-0 text-brand" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-brand">{t('chat.editMessage')}</p>
+            <p className="truncate text-xs text-stone-400">{editingMsg.content}</p>
+          </div>
+          <button onClick={() => { setEditingMsg(null); setInput(''); }} className="shrink-0 p-1 text-stone-400 hover:text-stone-600">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {replyTo && !editingMsg && (
         <div className="flex items-center gap-2 border-t border-stone-100 bg-stone-50 px-4 py-2">
           <Reply className="h-4 w-4 shrink-0 text-brand" />
           <div className="min-w-0 flex-1">
@@ -478,9 +656,9 @@ export default function ChatDetail() {
             <textarea
               ref={inputRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder={t('chat.inputPlaceholder')}
+              placeholder={editingMsg ? t('chat.editMessage') : t('chat.inputPlaceholder')}
               rows={1}
               className="w-full resize-none rounded-2xl border-0 bg-stone-100 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
             />
@@ -507,6 +685,83 @@ export default function ChatDetail() {
           <img src={previewFile.url} alt={previewFile.name} className="max-h-[90vh] max-w-[90vw] object-contain" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
+    </div>
+  );
+}
+
+/** Forward message modal – shows user's conversations to pick from */
+function ForwardModal({ msg, userId, onForward, onClose }: { msg: Message; userId?: string; onForward: (convId: string) => void; onClose: () => void }) {
+  const { t } = useTranslation();
+  const [convs, setConvs] = useState<{ id: string; name: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      const { data: memberships } = await supabase
+        .from('conversation_members')
+        .select('conversation_id')
+        .eq('user_id', userId);
+      if (!memberships) { setLoading(false); return; }
+      const ids = memberships.map(m => m.conversation_id);
+      const { data: conversations } = await supabase
+        .from('conversations')
+        .select('id, name, type')
+        .in('id', ids);
+      if (conversations) {
+        // For direct chats, fetch other user's name
+        const results: { id: string; name: string }[] = [];
+        for (const c of conversations) {
+          if (c.type === 'group') {
+            results.push({ id: c.id, name: c.name || t('chat.groupChat') });
+          } else {
+            const { data: members } = await supabase
+              .from('conversation_members')
+              .select('user_id')
+              .eq('conversation_id', c.id);
+            const otherId = members?.find(m => m.user_id !== userId)?.user_id;
+            if (otherId) {
+              const { data: profile } = await supabase
+                .from('public_profiles' as any)
+                .select('display_name, username')
+                .eq('id', otherId)
+                .single();
+              results.push({ id: c.id, name: (profile as any)?.display_name || (profile as any)?.username || t('chat.chat') });
+            }
+          }
+        }
+        setConvs(results);
+      }
+      setLoading(false);
+    })();
+  }, [userId, t]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-t-2xl bg-background p-4 pb-8 animate-in slide-in-from-bottom" onClick={e => e.stopPropagation()}>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-base font-semibold text-foreground">{t('chat.forwardTo')}</h3>
+          <button onClick={onClose} className="p-1 text-muted-foreground"><X className="h-5 w-5" /></button>
+        </div>
+        {loading ? (
+          <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+        ) : convs.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">{t('chat.noConversations')}</p>
+        ) : (
+          <div className="max-h-60 overflow-y-auto space-y-1">
+            {convs.map(c => (
+              <button
+                key={c.id}
+                onClick={() => onForward(c.id)}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-muted"
+              >
+                <Forward className="h-4 w-4 text-muted-foreground" />
+                <span className="truncate">{c.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

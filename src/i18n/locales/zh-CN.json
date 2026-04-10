@@ -102,7 +102,21 @@
     "voiceMessage": "语音消息",
     "recording": "录音中...",
     "holdToRecord": "录制语音消息",
-    "micPermissionDenied": "麦克风权限被拒绝，请在浏览器设置中允许"
+    "micPermissionDenied": "麦克风权限被拒绝，请在浏览器设置中允许",
+    "typing": "正在输入...",
+    "typingMultiple": "{{names}} 正在输入...",
+    "forward": "转发",
+    "forwardTo": "转发到",
+    "forwardSuccess": "转发成功",
+    "forwardFailed": "转发失败",
+    "edit": "编辑",
+    "editMessage": "编辑消息",
+    "editSuccess": "消息已编辑",
+    "editFailed": "编辑失败",
+    "edited": "(已编辑)",
+    "searchMessages": "搜索消息",
+    "searchMessagesPlaceholder": "搜索聊天记录...",
+    "noSearchResults": "未找到相关消息"
   },
   "contacts": {
     "friendRequests": "好友请求",

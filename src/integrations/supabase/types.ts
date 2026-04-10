@@ -528,6 +528,36 @@ export type Database = {
           },
         ]
       }
+      user_encryption_keys: {
+        Row: {
+          created_at: string
+          device_id: string
+          id: string
+          key_type: string
+          public_key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          device_id?: string
+          id?: string
+          key_type?: string
+          public_key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string
+          id?: string
+          key_type?: string
+          public_key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       public_profiles: {
