@@ -18,6 +18,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
+import { useE2EESetup, useE2EEChat } from '@/hooks/useE2EE';
+import { isEncryptedPayload } from '@/lib/e2ee/crypto';
 import type { Message } from '@/types';
 
 
