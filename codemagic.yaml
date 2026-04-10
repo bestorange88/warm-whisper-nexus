@@ -26,9 +26,20 @@ workflows:
             npx cap add ios
           fi
           npx cap sync ios
+          if [ ! -d ios ]; then
+            echo "iOS platform directory was not created"
+            exit 1
+          fi
       - name: Install CocoaPods
         script: |
-          cd ios/App && pod install
+          PODFILE_DIR="$(find ios -maxdepth 3 -name Podfile -exec dirname {} \; | head -n 1)"
+          if [ -z "$PODFILE_DIR" ]; then
+            echo "No Podfile found after Capacitor sync"
+            ls -R ios || true
+            exit 1
+          fi
+          cd "$PODFILE_DIR"
+          pod install --repo-update
       - name: Set up code signing
         script: |
           keychain initialize
@@ -37,8 +48,17 @@ workflows:
           xcode-project use-profiles
       - name: Build IPA
         script: |
+          WORKSPACE_PATH="$XCODE_WORKSPACE"
+          if [ ! -f "$WORKSPACE_PATH" ]; then
+            WORKSPACE_PATH="$(find ios -maxdepth 4 -name '*.xcworkspace' | head -n 1)"
+          fi
+          if [ -z "$WORKSPACE_PATH" ] || [ ! -f "$WORKSPACE_PATH" ]; then
+            echo "No Xcode workspace found"
+            ls -R ios || true
+            exit 1
+          fi
           xcode-project build-ipa \
-            --workspace "$XCODE_WORKSPACE" \
+            --workspace "$WORKSPACE_PATH" \
             --scheme "$XCODE_SCHEME"
     artifacts:
       - build/ios/ipa/*.ipa
