@@ -116,7 +116,8 @@
     "edited": "(已编辑)",
     "searchMessages": "搜索消息",
     "searchMessagesPlaceholder": "搜索聊天记录...",
-    "noSearchResults": "未找到相关消息"
+    "noSearchResults": "未找到相关消息",
+    "mentionAll": "所有人"
   },
   "contacts": {
     "friendRequests": "好友请求",
