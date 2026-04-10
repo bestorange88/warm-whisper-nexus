@@ -19,18 +19,8 @@ import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import type { Message } from '@/types';
-import { useCallContext } from '@/features/calling/CallProvider';
-import { CallMessageRenderer } from '@/features/calling/components/CallMessageRenderer';
-import { isCallMessage } from '@/features/calling/callMessageBuilder';
-import { UserAvatar } from '@/components/avatar/UserAvatar';
-import { FullPageLoading } from '@/components/common/LoadingSpinner';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { useTranslation } from 'react-i18next';
-import type { Message } from '@/types';
+
+
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
