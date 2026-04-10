@@ -56,11 +56,14 @@ interface MessageMenuProps {
   onDelete: () => void;
   onCopy: () => void;
   onReply: () => void;
+  onEdit: () => void;
+  onForward: () => void;
 }
 
-function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete, onCopy, onReply }: MessageMenuProps) {
+function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete, onCopy, onReply, onEdit, onForward }: MessageMenuProps) {
   const { t } = useTranslation();
   const canRecall = isOwn && Date.now() - new Date(msg.created_at).getTime() < RECALL_WINDOW_MS;
+  const canEdit = isOwn && msg.type === 'text' && msg.content;
 
   useEffect(() => {
     const handler = () => onClose();
@@ -86,6 +89,14 @@ function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete,
           <Copy className="h-4 w-4" /> {t('chat.copy')}
         </button>
       )}
+      {canEdit && (
+        <button onClick={onEdit} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
+          <Pencil className="h-4 w-4" /> {t('chat.edit')}
+        </button>
+      )}
+      <button onClick={onForward} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
+        <Forward className="h-4 w-4" /> {t('chat.forward')}
+      </button>
       {canRecall && (
         <button onClick={onRecall} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
           <Undo2 className="h-4 w-4" /> {t('chat.recall')}
