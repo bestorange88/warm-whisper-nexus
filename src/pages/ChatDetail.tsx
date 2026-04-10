@@ -135,6 +135,20 @@ function QuotedMessage({ replyToId, messagesMap, isOwn }: { replyToId: string; m
   );
 }
 
+/** Async-decrypting text component */
+function DecryptedText({ content, decrypt: decryptFn }: { content: string | null; decrypt: (c: string) => Promise<string> }) {
+  const [text, setText] = useState(content || '');
+  useEffect(() => {
+    if (!content) return;
+    if (isEncryptedPayload(content)) {
+      decryptFn(content).then(setText);
+    } else {
+      setText(content);
+    }
+  }, [content, decryptFn]);
+  return <p className="whitespace-pre-wrap break-words">{text}</p>;
+}
+
 export default function ChatDetail() {
   const { t } = useTranslation();
   const { conversationId } = useParams<{ conversationId: string }>();
