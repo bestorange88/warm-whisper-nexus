@@ -1,14 +1,14 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, usePublicProfile } from '@/hooks/useProfile';
-import { useSendFriendRequest, useBlockUser } from '@/hooks/useContacts';
+import { useSendFriendRequest, useBlockUser, useFriends } from '@/hooks/useContacts';
 import { useFindOrCreateDirectChat } from '@/hooks/useConversations';
 import { UserAvatar } from '@/components/avatar/UserAvatar';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/button';
 import { FullPageLoading } from '@/components/common/LoadingSpinner';
 import { MessageCircle, Flag, Ban } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export default function UserProfile() {
@@ -17,12 +17,17 @@ export default function UserProfile() {
   const { user } = useAuth();
   const isOwnProfile = user?.id === userId;
 
-  // Use full profile for own, public profile for others
   const { data: ownProfile, isLoading: ownLoading } = useProfile(isOwnProfile ? userId : undefined);
   const { data: publicProfile, isLoading: pubLoading } = usePublicProfile(!isOwnProfile ? userId : undefined);
+  const { data: friends } = useFriends(user?.id);
 
   const profile = isOwnProfile ? ownProfile : publicProfile;
   const isLoading = isOwnProfile ? ownLoading : pubLoading;
+
+  const isFriend = useMemo(() => {
+    if (!friends || !userId) return false;
+    return friends.some((f) => f.friend_id === userId);
+  }, [friends, userId]);
 
   const sendRequest = useSendFriendRequest();
   const blockUser = useBlockUser();
@@ -73,9 +78,11 @@ export default function UserProfile() {
               <MessageCircle className="h-4 w-4" />
               {t('contacts.sendMessage')}
             </Button>
-            <Button variant="outline" className="w-full gap-2" onClick={handleAddFriend} disabled={requestSent}>
-              {requestSent ? t('contacts.requestSentAlready') : t('contacts.addFriendBtn')}
-            </Button>
+            {!isFriend && (
+              <Button variant="outline" className="w-full gap-2" onClick={handleAddFriend} disabled={requestSent}>
+                {requestSent ? t('contacts.requestSentAlready') : t('contacts.addFriendBtn')}
+              </Button>
+            )}
             <div className="flex gap-3 pt-2">
               <Button variant="ghost" size="sm" className="flex-1 gap-1 text-stone-500" onClick={() => navigate(`/report/user/${userId}`)}>
                 <Flag className="h-4 w-4" /> {t('contacts.report')}
