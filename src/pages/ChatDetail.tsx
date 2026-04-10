@@ -497,6 +497,11 @@ export default function ChatDetail() {
                     ) : (
                       <p className="whitespace-pre-wrap break-words">{msg.content}</p>
                     )}
+                    {msg.is_edited && (
+                      <span className={cn('text-[10px] italic', isOwn ? 'text-white/60' : 'text-stone-400')}>
+                        {t('chat.edited')}
+                      </span>
+                    )}
                   </div>
                   <div className={cn('mt-0.5 flex items-center gap-1 text-xs text-stone-300', isOwn ? 'justify-end' : 'justify-start')}>
                     <span>{format(new Date(msg.created_at), 'HH:mm')}</span>
@@ -509,6 +514,18 @@ export default function ChatDetail() {
             </div>
           );
         })}
+        {isOtherTyping && (
+          <div className="mb-3 flex justify-start">
+            <div className="flex max-w-[75%] gap-2">
+              <div className="rounded-2xl rounded-tl-md bg-white px-3.5 py-2 text-sm text-stone-400 shadow-sm">
+                {typingDisplayNames.length > 0
+                  ? t('chat.typingMultiple', { names: typingDisplayNames.join(', ') })
+                  : t('chat.typing')
+                }
+              </div>
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -522,10 +539,35 @@ export default function ChatDetail() {
           onDelete={handleDelete}
           onCopy={handleCopy}
           onReply={handleReply}
+          onEdit={handleEdit}
+          onForward={handleForward}
         />
       )}
 
-      {replyTo && (
+      {/* Forward modal */}
+      {forwardMsg && (
+        <ForwardModal
+          msg={forwardMsg}
+          userId={user?.id}
+          onForward={handleForwardTo}
+          onClose={() => setForwardMsg(null)}
+        />
+      )}
+
+      {editingMsg && (
+        <div className="flex items-center gap-2 border-t border-stone-100 bg-stone-50 px-4 py-2">
+          <Pencil className="h-4 w-4 shrink-0 text-brand" />
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium text-brand">{t('chat.editMessage')}</p>
+            <p className="truncate text-xs text-stone-400">{editingMsg.content}</p>
+          </div>
+          <button onClick={() => { setEditingMsg(null); setInput(''); }} className="shrink-0 p-1 text-stone-400 hover:text-stone-600">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {replyTo && !editingMsg && (
         <div className="flex items-center gap-2 border-t border-stone-100 bg-stone-50 px-4 py-2">
           <Reply className="h-4 w-4 shrink-0 text-brand" />
           <div className="min-w-0 flex-1">
@@ -556,9 +598,9 @@ export default function ChatDetail() {
             <textarea
               ref={inputRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder={t('chat.inputPlaceholder')}
+              placeholder={editingMsg ? t('chat.editMessage') : t('chat.inputPlaceholder')}
               rows={1}
               className="w-full resize-none rounded-2xl border-0 bg-stone-100 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
             />
@@ -585,6 +627,83 @@ export default function ChatDetail() {
           <img src={previewFile.url} alt={previewFile.name} className="max-h-[90vh] max-w-[90vw] object-contain" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
+    </div>
+  );
+}
+
+/** Forward message modal – shows user's conversations to pick from */
+function ForwardModal({ msg, userId, onForward, onClose }: { msg: Message; userId?: string; onForward: (convId: string) => void; onClose: () => void }) {
+  const { t } = useTranslation();
+  const [convs, setConvs] = useState<{ id: string; name: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      const { data: memberships } = await supabase
+        .from('conversation_members')
+        .select('conversation_id')
+        .eq('user_id', userId);
+      if (!memberships) { setLoading(false); return; }
+      const ids = memberships.map(m => m.conversation_id);
+      const { data: conversations } = await supabase
+        .from('conversations')
+        .select('id, name, type')
+        .in('id', ids);
+      if (conversations) {
+        // For direct chats, fetch other user's name
+        const results: { id: string; name: string }[] = [];
+        for (const c of conversations) {
+          if (c.type === 'group') {
+            results.push({ id: c.id, name: c.name || t('chat.groupChat') });
+          } else {
+            const { data: members } = await supabase
+              .from('conversation_members')
+              .select('user_id')
+              .eq('conversation_id', c.id);
+            const otherId = members?.find(m => m.user_id !== userId)?.user_id;
+            if (otherId) {
+              const { data: profile } = await supabase
+                .from('public_profiles' as any)
+                .select('display_name, username')
+                .eq('id', otherId)
+                .single();
+              results.push({ id: c.id, name: (profile as any)?.display_name || (profile as any)?.username || t('chat.chat') });
+            }
+          }
+        }
+        setConvs(results);
+      }
+      setLoading(false);
+    })();
+  }, [userId, t]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-t-2xl bg-background p-4 pb-8 animate-in slide-in-from-bottom" onClick={e => e.stopPropagation()}>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="text-base font-semibold text-foreground">{t('chat.forwardTo')}</h3>
+          <button onClick={onClose} className="p-1 text-muted-foreground"><X className="h-5 w-5" /></button>
+        </div>
+        {loading ? (
+          <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+        ) : convs.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">{t('chat.noConversations')}</p>
+        ) : (
+          <div className="max-h-60 overflow-y-auto space-y-1">
+            {convs.map(c => (
+              <button
+                key={c.id}
+                onClick={() => onForward(c.id)}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-muted"
+              >
+                <Forward className="h-4 w-4 text-muted-foreground" />
+                <span className="truncate">{c.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
