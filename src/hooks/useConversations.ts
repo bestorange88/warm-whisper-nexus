@@ -176,15 +176,27 @@ export function useMessages(conversationId?: string) {
     queryKey: ['messages', conversationId],
     queryFn: async () => {
       if (!conversationId) return [];
-      const { data, error } = await supabase
+      const { data: msgs, error } = await supabase
         .from('messages')
-        .select('*, sender:profiles!messages_sender_id_fkey(*)')
+        .select('*')
         .eq('conversation_id', conversationId)
         .eq('is_deleted', false)
         .order('created_at', { ascending: true })
         .limit(100);
       if (error) throw error;
-      return (data || []) as unknown as Message[];
+      if (!msgs || msgs.length === 0) return [];
+
+      // Fetch sender profiles via public_profiles view
+      const senderIds = [...new Set(msgs.map((m) => m.sender_id))];
+      const { data: profiles } = await supabase
+        .from('public_profiles' as any)
+        .select('*')
+        .in('id', senderIds);
+
+      return msgs.map((m) => ({
+        ...m,
+        sender: (profiles as any[])?.find((p: any) => p.id === m.sender_id) || null,
+      })) as unknown as Message[];
     },
     enabled: !!conversationId,
   });
