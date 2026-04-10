@@ -1,7 +1,7 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { MessageCircle, Users, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { APP_NAME_ZH } from '@/lib/constants';
+
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { useFriendRequests } from '@/hooks/useContacts';
@@ -29,7 +29,7 @@ export function MobileLayout() {
     <div className="flex h-full flex-col bg-white">
       {isMainRoute && (
         <header className="safe-area-top flex h-12 shrink-0 items-center border-b border-stone-100 px-4">
-          <h1 className="text-lg font-semibold text-stone-900">{APP_NAME_ZH}</h1>
+          <h1 className="text-lg font-semibold text-stone-900">{t('app.name')}</h1>
         </header>
       )}
       <main className="flex-1 overflow-hidden">
