@@ -224,13 +224,25 @@ export function useCreateConversation() {
         .single();
       if (convErr) throw convErr;
 
-      const members = params.memberIds.map((uid) => ({
+      // Insert owner first, then other members
+      const { error: ownerErr } = await supabase.from('conversation_members').insert({
         conversation_id: conv!.id,
-        user_id: uid,
-        role: uid === params.createdBy ? 'owner' : 'member',
-      }));
-      const { error: memErr } = await supabase.from('conversation_members').insert(members);
-      if (memErr) throw memErr;
+        user_id: params.createdBy,
+        role: 'owner',
+      });
+      if (ownerErr) throw ownerErr;
+
+      const otherMembers = params.memberIds
+        .filter((uid) => uid !== params.createdBy)
+        .map((uid) => ({
+          conversation_id: conv!.id,
+          user_id: uid,
+          role: 'member',
+        }));
+      if (otherMembers.length > 0) {
+        const { error: memErr } = await supabase.from('conversation_members').insert(otherMembers);
+        if (memErr) throw memErr;
+      }
       return conv as unknown as Conversation;
     },
     onSuccess: () => {
