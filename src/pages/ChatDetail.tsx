@@ -713,6 +713,27 @@ export default function ChatDetail() {
         </div>
       )}
 
+      {/* Mention suggestions popup */}
+      {mentionQuery !== null && filteredMentions.length > 0 && (
+        <div className="border-t border-stone-100 bg-white px-3 py-1">
+          <div className="max-h-40 overflow-y-auto rounded-lg border border-border bg-background shadow-lg">
+            {filteredMentions.map((m, i) => (
+              <button
+                key={m.id}
+                onClick={() => insertMention(m.name)}
+                className={cn(
+                  'flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground',
+                  i === mentionIndex ? 'bg-muted' : 'hover:bg-muted/50'
+                )}
+              >
+                <span className="text-brand font-medium">@</span>
+                <span>{m.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="safe-area-bottom shrink-0 border-t border-stone-100 bg-white px-3 py-2">
         <div className="flex items-end gap-2">
           <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
