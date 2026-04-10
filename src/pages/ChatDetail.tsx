@@ -135,6 +135,22 @@ function QuotedMessage({ replyToId, messagesMap, isOwn }: { replyToId: string; m
   );
 }
 
+/** Render text with @mention highlights */
+function MentionText({ text }: { text: string }) {
+  const parts = text.split(/(@\S+)/g);
+  return (
+    <p className="whitespace-pre-wrap break-words">
+      {parts.map((part, i) =>
+        part.startsWith('@') ? (
+          <span key={i} className="font-semibold text-blue-400">{part}</span>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </p>
+  );
+}
+
 /** Async-decrypting text component */
 function DecryptedText({ content, decrypt: decryptFn }: { content: string | null; decrypt: (c: string) => Promise<string> }) {
   const [text, setText] = useState(content || '');
@@ -146,7 +162,7 @@ function DecryptedText({ content, decrypt: decryptFn }: { content: string | null
       setText(content);
     }
   }, [content, decryptFn]);
-  return <p className="whitespace-pre-wrap break-words">{text}</p>;
+  return <MentionText text={text} />;
 }
 
 export default function ChatDetail() {
@@ -169,6 +185,8 @@ export default function ChatDetail() {
   const [forwardMsg, setForwardMsg] = useState<Message | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionIndex, setMentionIndex] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -265,11 +283,80 @@ export default function ChatDetail() {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value);
+    const val = e.target.value;
+    setInput(val);
     sendTyping(otherProfile?.display_name || otherProfile?.username);
+
+    // Detect @mention trigger
+    const textarea = e.target;
+    const cursorPos = textarea.selectionStart;
+    const textBeforeCursor = val.slice(0, cursorPos);
+    const atMatch = textBeforeCursor.match(/@([^\s@]*)$/);
+    if (atMatch && !isDirectChat) {
+      setMentionQuery(atMatch[1].toLowerCase());
+      setMentionIndex(0);
+    } else {
+      setMentionQuery(null);
+    }
   };
 
+  // Get group members for mention suggestions
+  const mentionMembers = useMemo(() => {
+    if (!conversation?.members || isDirectChat) return [];
+    return conversation.members
+      .filter(m => m.user_id !== user?.id && m.profile)
+      .map(m => ({
+        id: m.user_id,
+        name: m.profile?.display_name || m.profile?.username || '',
+      }));
+  }, [conversation?.members, isDirectChat, user?.id]);
+
+  const filteredMentions = useMemo(() => {
+    if (mentionQuery === null) return [];
+    if (!mentionQuery) return mentionMembers;
+    return mentionMembers.filter(m => m.name.toLowerCase().includes(mentionQuery));
+  }, [mentionQuery, mentionMembers]);
+
+  const insertMention = useCallback((name: string) => {
+    const textarea = inputRef.current;
+    if (!textarea) return;
+    const cursorPos = textarea.selectionStart;
+    const textBefore = input.slice(0, cursorPos);
+    const textAfter = input.slice(cursorPos);
+    const atStart = textBefore.lastIndexOf('@');
+    const newText = textBefore.slice(0, atStart) + `@${name} ` + textAfter;
+    setInput(newText);
+    setMentionQuery(null);
+    setTimeout(() => {
+      const newPos = atStart + name.length + 2;
+      textarea.setSelectionRange(newPos, newPos);
+      textarea.focus();
+    }, 0);
+  }, [input]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle mention navigation
+    if (mentionQuery !== null && filteredMentions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionIndex(i => (i + 1) % filteredMentions.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionIndex(i => (i - 1 + filteredMentions.length) % filteredMentions.length);
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        insertMention(filteredMentions[mentionIndex].name);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setMentionQuery(null);
+        return;
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -639,6 +726,27 @@ export default function ChatDetail() {
           <button onClick={() => setReplyTo(null)} className="shrink-0 p-1 text-stone-400 hover:text-stone-600">
             <X className="h-4 w-4" />
           </button>
+        </div>
+      )}
+
+      {/* Mention suggestions popup */}
+      {mentionQuery !== null && filteredMentions.length > 0 && (
+        <div className="border-t border-stone-100 bg-white px-3 py-1">
+          <div className="max-h-40 overflow-y-auto rounded-lg border border-border bg-background shadow-lg">
+            {filteredMentions.map((m, i) => (
+              <button
+                key={m.id}
+                onClick={() => insertMention(m.name)}
+                className={cn(
+                  'flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground',
+                  i === mentionIndex ? 'bg-muted' : 'hover:bg-muted/50'
+                )}
+              >
+                <span className="text-brand font-medium">@</span>
+                <span>{m.name}</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
