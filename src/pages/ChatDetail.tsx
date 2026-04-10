@@ -401,6 +401,13 @@ export default function ChatDetail() {
     return new Date(msg.created_at) <= new Date(otherLastRead);
   }, [isDirectChat, otherLastRead]);
 
+  const filteredMessages = useMemo(() => {
+    if (!messages) return [];
+    if (!searchQuery.trim()) return messages;
+    const q = searchQuery.toLowerCase();
+    return messages.filter(m => m.content?.toLowerCase().includes(q));
+  }, [messages, searchQuery]);
+
   if (isLoading) return <FullPageLoading />;
 
   const chatName = isDirectChat
@@ -414,6 +421,7 @@ export default function ChatDetail() {
         <button onClick={() => navigate(-1)} className="text-stone-600"><ArrowLeft className="h-5 w-5" /></button>
         <UserAvatar src={chatAvatar} name={chatName} size="sm" />
         <h1 className="flex-1 truncate text-base font-semibold text-stone-900">{chatName}</h1>
+        <button onClick={() => setSearchOpen(prev => !prev)} className="p-1.5 text-stone-500 hover:text-brand"><SearchIcon className="h-5 w-5" /></button>
         {isDirectChat && (
           <>
             <button onClick={() => handleCall('audio')} className="p-1.5 text-stone-500 hover:text-brand"><Phone className="h-5 w-5" /></button>
@@ -428,8 +436,27 @@ export default function ChatDetail() {
         )}
       </header>
 
+      {searchOpen && (
+        <div className="flex items-center gap-2 border-b border-stone-100 bg-white px-3 py-2">
+          <SearchIcon className="h-4 w-4 text-stone-400" />
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={t('chat.searchMessagesPlaceholder')}
+            className="flex-1 bg-transparent text-sm outline-none placeholder:text-stone-400"
+            autoFocus
+          />
+          <button onClick={() => { setSearchOpen(false); setSearchQuery(''); }} className="p-1 text-stone-400">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto px-4 py-3">
-        {messages?.map((msg: Message) => {
+        {searchQuery && filteredMessages.length === 0 ? (
+          <p className="py-8 text-center text-sm text-stone-400">{t('chat.noSearchResults')}</p>
+        ) : null}
+        {filteredMessages.map((msg: Message) => {
           const isOwn = msg.sender_id === user?.id;
 
           if (msg.type === 'system' && isCallMessage(msg.content)) {
