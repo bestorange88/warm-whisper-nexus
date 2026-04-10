@@ -135,6 +135,22 @@ function QuotedMessage({ replyToId, messagesMap, isOwn }: { replyToId: string; m
   );
 }
 
+/** Render text with @mention highlights */
+function MentionText({ text }: { text: string }) {
+  const parts = text.split(/(@\S+)/g);
+  return (
+    <p className="whitespace-pre-wrap break-words">
+      {parts.map((part, i) =>
+        part.startsWith('@') ? (
+          <span key={i} className="font-semibold text-blue-400">{part}</span>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </p>
+  );
+}
+
 /** Async-decrypting text component */
 function DecryptedText({ content, decrypt: decryptFn }: { content: string | null; decrypt: (c: string) => Promise<string> }) {
   const [text, setText] = useState(content || '');
@@ -146,7 +162,7 @@ function DecryptedText({ content, decrypt: decryptFn }: { content: string | null
       setText(content);
     }
   }, [content, decryptFn]);
-  return <p className="whitespace-pre-wrap break-words">{text}</p>;
+  return <MentionText text={text} />;
 }
 
 export default function ChatDetail() {
