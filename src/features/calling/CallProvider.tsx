@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { callReducer, initialCallState, type CallMachineState } from './callStateMachine';
 import { createCallSession, joinCallSession, endCallSession, requestMediaPermissions } from './callService';
+import { callSounds } from './callSounds';
 import type { CallType, CallAction, CallSession } from './types';
 import { useQueryClient } from '@tanstack/react-query';
 
