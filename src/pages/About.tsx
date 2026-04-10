@@ -1,5 +1,5 @@
 import { PageHeader } from '@/components/layout/PageHeader';
-import { APP_NAME_ZH, APP_NAME_EN, APP_VERSION, SUPPORT_EMAIL } from '@/lib/constants';
+import { APP_NAME_EN, APP_VERSION, SUPPORT_EMAIL } from '@/lib/constants';
 import logoImage from '@/assets/logo.png';
 import { useTranslation } from 'react-i18next';
 
@@ -11,15 +11,15 @@ export default function About() {
       <PageHeader title={t('about.title')} />
       <div className="flex-1 overflow-y-auto px-4 py-8">
         <div className="flex flex-col items-center">
-          <img src={logoImage} alt={APP_NAME_ZH} className="h-20 w-20 rounded-2xl shadow-lg" />
-          <h1 className="mt-4 text-xl font-bold text-stone-900">{APP_NAME_ZH}</h1>
-          <p className="text-sm text-stone-400">{APP_NAME_EN}</p>
+          <img src={logoImage} alt={t('app.name')} className="h-20 w-20 rounded-2xl shadow-lg" />
+          <h1 className="mt-4 text-xl font-bold text-stone-900">{t('app.name')}</h1>
+          <p className="text-sm text-stone-400">{t('app.nameEn')}</p>
           <p className="mt-1 text-xs text-stone-300">{t('app.version', { version: APP_VERSION })}</p>
         </div>
 
         <div className="mt-8 space-y-4 text-center">
           <p className="text-sm text-stone-600">
-            {t('about.description', { appName: APP_NAME_ZH })}
+            {t('about.description', { appName: t('app.name') })}
           </p>
 
           <div className="rounded-xl bg-stone-50 p-4">
