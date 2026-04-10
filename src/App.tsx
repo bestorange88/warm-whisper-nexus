@@ -67,6 +67,7 @@ function PageSuspense({ children }: { children: React.ReactNode }) {
 
 function GlobalNotificationListener() {
   useGlobalNotifications();
+  usePushNotifications();
   return null;
 }
 
