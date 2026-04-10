@@ -164,6 +164,9 @@ export default function ChatDetail() {
 
   const { isOtherTyping, typingUsers: typingDisplayNames, sendTyping } = useTypingIndicator(conversationId, user?.id);
 
+  // E2EE setup
+  useE2EESetup(user?.id);
+
   const messagesMap = useMemo(() => {
     const map = new Map<string, Message>();
     messages?.forEach((m) => map.set(m.id, m));
