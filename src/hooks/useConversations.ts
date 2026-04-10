@@ -284,11 +284,15 @@ export function useFindOrCreateDirectChat() {
         .single();
       if (convErr) throw convErr;
 
-      const members = [
-        { conversation_id: conv!.id, user_id: params.currentUserId, role: 'owner' },
-        { conversation_id: conv!.id, user_id: params.otherUserId, role: 'member' },
-      ];
-      const { error: memErr } = await supabase.from('conversation_members').insert(members);
+      // Insert owner first so is_conversation_owner check passes for the second insert
+      const { error: ownerErr } = await supabase.from('conversation_members').insert({
+        conversation_id: conv!.id, user_id: params.currentUserId, role: 'owner',
+      });
+      if (ownerErr) throw ownerErr;
+
+      const { error: memErr } = await supabase.from('conversation_members').insert({
+        conversation_id: conv!.id, user_id: params.otherUserId, role: 'member',
+      });
       if (memErr) throw memErr;
 
       return conv as unknown as Conversation;
