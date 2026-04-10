@@ -195,6 +195,25 @@ export default function ChatDetail() {
     if (!input.trim() || !user || !conversationId) return;
     const content = input.trim();
     setInput('');
+
+    // If editing a message, update it instead of sending new
+    if (editingMsg) {
+      const msgId = editingMsg.id;
+      setEditingMsg(null);
+      try {
+        const { error } = await supabase
+          .from('messages')
+          .update({ content, is_edited: true })
+          .eq('id', msgId)
+          .eq('sender_id', user.id);
+        if (error) throw error;
+        toast.success(t('chat.editSuccess'));
+      } catch {
+        toast.error(t('chat.editFailed'));
+      }
+      return;
+    }
+
     const replyToId = replyTo?.id;
     setReplyTo(null);
     await sendMessage.mutateAsync({
@@ -204,6 +223,11 @@ export default function ChatDetail() {
       content,
       ...(replyToId ? { reply_to: replyToId } : {}),
     });
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    sendTyping(otherProfile?.display_name || otherProfile?.username);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
