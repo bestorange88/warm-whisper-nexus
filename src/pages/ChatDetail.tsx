@@ -188,6 +188,7 @@ export default function ChatDetail() {
   const { data: otherProfile } = useProfile(conversation?.type === 'direct' ? otherUserId ?? undefined : undefined);
 
   const isDirectChat = conversation?.type === 'direct';
+  const { encrypt, decrypt, canEncrypt } = useE2EEChat(user?.id, isDirectChat ? otherUserId : null);
   const { data: otherLastRead } = useReadReceipt(
     isDirectChat ? conversationId : undefined,
     isDirectChat ? otherUserId : undefined
