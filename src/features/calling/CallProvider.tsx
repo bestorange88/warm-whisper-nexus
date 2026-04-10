@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { callReducer, initialCallState, type CallMachineState } from './callStateMachine';
 import { createCallSession, joinCallSession, endCallSession, requestMediaPermissions } from './callService';
+import { callSounds } from './callSounds';
 import type { CallType, CallAction, CallSession } from './types';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -149,6 +150,36 @@ export function CallProvider({ children }: { children: ReactNode }) {
     }
     return () => {
       if (dialTimeoutRef.current) clearTimeout(dialTimeoutRef.current);
+    };
+  }, [state.callState]);
+
+  // Play sound effects based on call state
+  useEffect(() => {
+    switch (state.callState) {
+      case 'dialing':
+        callSounds.playDialTone();
+        break;
+      case 'incoming':
+        callSounds.playRingtone();
+        break;
+      case 'connecting':
+        callSounds.stopAll();
+        break;
+      case 'connected':
+        callSounds.playConnectTone();
+        break;
+      case 'ended':
+      case 'failed':
+        callSounds.playEndTone();
+        break;
+      case 'idle':
+        callSounds.stopAll();
+        break;
+    }
+    return () => {
+      if (state.callState === 'idle') {
+        callSounds.stopAll();
+      }
     };
   }, [state.callState]);
 

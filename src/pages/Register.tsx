@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
-import { APP_NAME_ZH } from '@/lib/constants';
+
 import { useTranslation } from 'react-i18next';
 import logoImage from '@/assets/logo.png';
 
@@ -40,8 +40,8 @@ export default function Register() {
     <div className="flex h-full flex-col items-center justify-center bg-white px-6">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center">
-          <img src={logoImage} alt={APP_NAME_ZH} className="mb-4 h-16 w-16 rounded-2xl shadow-lg" />
-          <h1 className="text-xl font-bold text-stone-900">{t('auth.registerTitle', { appName: APP_NAME_ZH })}</h1>
+          <img src={logoImage} alt={t('app.name')} className="mb-4 h-16 w-16 rounded-2xl shadow-lg" />
+          <h1 className="text-xl font-bold text-stone-900">{t('auth.registerTitle', { appName: t('app.name') })}</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
