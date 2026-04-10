@@ -153,6 +153,36 @@ export function CallProvider({ children }: { children: ReactNode }) {
     };
   }, [state.callState]);
 
+  // Play sound effects based on call state
+  useEffect(() => {
+    switch (state.callState) {
+      case 'dialing':
+        callSounds.playDialTone();
+        break;
+      case 'incoming':
+        callSounds.playRingtone();
+        break;
+      case 'connecting':
+        callSounds.stopAll();
+        break;
+      case 'connected':
+        callSounds.playConnectTone();
+        break;
+      case 'ended':
+      case 'failed':
+        callSounds.playEndTone();
+        break;
+      case 'idle':
+        callSounds.stopAll();
+        break;
+    }
+    return () => {
+      if (state.callState === 'idle') {
+        callSounds.stopAll();
+      }
+    };
+  }, [state.callState]);
+
   // Auto-reset after ended/failed
   useEffect(() => {
     if (state.callState === 'ended' || state.callState === 'failed') {
