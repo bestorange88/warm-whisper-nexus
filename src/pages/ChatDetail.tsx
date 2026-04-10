@@ -265,11 +265,80 @@ export default function ChatDetail() {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value);
+    const val = e.target.value;
+    setInput(val);
     sendTyping(otherProfile?.display_name || otherProfile?.username);
+
+    // Detect @mention trigger
+    const textarea = e.target;
+    const cursorPos = textarea.selectionStart;
+    const textBeforeCursor = val.slice(0, cursorPos);
+    const atMatch = textBeforeCursor.match(/@([^\s@]*)$/);
+    if (atMatch && !isDirectChat) {
+      setMentionQuery(atMatch[1].toLowerCase());
+      setMentionIndex(0);
+    } else {
+      setMentionQuery(null);
+    }
   };
 
+  // Get group members for mention suggestions
+  const mentionMembers = useMemo(() => {
+    if (!conversation?.members || isDirectChat) return [];
+    return conversation.members
+      .filter(m => m.user_id !== user?.id && m.profile)
+      .map(m => ({
+        id: m.user_id,
+        name: m.profile?.display_name || m.profile?.username || '',
+      }));
+  }, [conversation?.members, isDirectChat, user?.id]);
+
+  const filteredMentions = useMemo(() => {
+    if (mentionQuery === null) return [];
+    if (!mentionQuery) return mentionMembers;
+    return mentionMembers.filter(m => m.name.toLowerCase().includes(mentionQuery));
+  }, [mentionQuery, mentionMembers]);
+
+  const insertMention = useCallback((name: string) => {
+    const textarea = inputRef.current;
+    if (!textarea) return;
+    const cursorPos = textarea.selectionStart;
+    const textBefore = input.slice(0, cursorPos);
+    const textAfter = input.slice(cursorPos);
+    const atStart = textBefore.lastIndexOf('@');
+    const newText = textBefore.slice(0, atStart) + `@${name} ` + textAfter;
+    setInput(newText);
+    setMentionQuery(null);
+    setTimeout(() => {
+      const newPos = atStart + name.length + 2;
+      textarea.setSelectionRange(newPos, newPos);
+      textarea.focus();
+    }, 0);
+  }, [input]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Handle mention navigation
+    if (mentionQuery !== null && filteredMentions.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionIndex(i => (i + 1) % filteredMentions.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionIndex(i => (i - 1 + filteredMentions.length) % filteredMentions.length);
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        insertMention(filteredMentions[mentionIndex].name);
+        return;
+      }
+      if (e.key === 'Escape') {
+        setMentionQuery(null);
+        return;
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
