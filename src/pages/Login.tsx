@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
-import { APP_NAME_ZH } from '@/lib/constants';
+
 import { useTranslation } from 'react-i18next';
 import logoImage from '@/assets/logo.png';
 
@@ -37,8 +37,8 @@ export default function Login() {
   return (
     <div className="flex h-full flex-col items-center justify-center bg-gradient-to-b from-orange-50 to-white px-6">
       <div className="mb-8 flex flex-col items-center">
-        <img src={logoImage} alt={APP_NAME_ZH} className="h-20 w-20 rounded-2xl shadow-lg" />
-        <h1 className="mt-4 text-2xl font-bold text-stone-900">{APP_NAME_ZH}</h1>
+        <img src={logoImage} alt={t('app.name')} className="h-20 w-20 rounded-2xl shadow-lg" />
+        <h1 className="mt-4 text-2xl font-bold text-stone-900">{t('app.name')}</h1>
         <p className="mt-1 text-sm text-stone-400">{t('app.tagline')}</p>
       </div>
 
