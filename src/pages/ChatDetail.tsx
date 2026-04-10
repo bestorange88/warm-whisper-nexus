@@ -362,6 +362,40 @@ export default function ChatDetail() {
     inputRef.current?.focus();
   };
 
+  const handleEdit = () => {
+    if (!contextMenu) return;
+    setEditingMsg(contextMenu.msg);
+    setInput(contextMenu.msg.content || '');
+    setReplyTo(null);
+    setContextMenu(null);
+    inputRef.current?.focus();
+  };
+
+  const handleForward = () => {
+    if (!contextMenu) return;
+    setForwardMsg(contextMenu.msg);
+    setContextMenu(null);
+  };
+
+  const handleForwardTo = async (targetConvId: string) => {
+    if (!forwardMsg || !user) return;
+    try {
+      await sendMessage.mutateAsync({
+        conversation_id: targetConvId,
+        sender_id: user.id,
+        type: forwardMsg.type as string,
+        content: forwardMsg.content || undefined,
+        media_url: forwardMsg.media_url || undefined,
+        file_name: forwardMsg.file_name || undefined,
+        file_size: forwardMsg.file_size || undefined,
+      });
+      toast.success(t('chat.forwardSuccess'));
+      setForwardMsg(null);
+    } catch {
+      toast.error(t('chat.forwardFailed'));
+    }
+  };
+
   const isMessageRead = useCallback((msg: Message) => {
     if (!isDirectChat || !otherLastRead) return false;
     return new Date(msg.created_at) <= new Date(otherLastRead);
