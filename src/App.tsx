@@ -9,6 +9,7 @@ import { CallProvider } from '@/features/calling/CallProvider';
 import { IncomingCallModal } from '@/features/calling/components/IncomingCallModal';
 import { ActiveCallScreen } from '@/features/calling/components/ActiveCallScreen';
 import { useGlobalNotifications } from '@/hooks/useGlobalNotifications';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { lazy, Suspense } from 'react';
 
 const Login = lazy(() => import('@/pages/Login'));
@@ -66,6 +67,7 @@ function PageSuspense({ children }: { children: React.ReactNode }) {
 
 function GlobalNotificationListener() {
   useGlobalNotifications();
+  usePushNotifications();
   return null;
 }
 
