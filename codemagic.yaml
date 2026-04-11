@@ -38,6 +38,14 @@ workflows:
             echo "iOS platform directory was not created"
             exit 1
           fi
+      - name: Auto-increment build number
+        script: |
+          PROJECT_PATH="ios/App/App.xcodeproj"
+          LATEST=$( app-store-connect get-latest-build-number "$BUNDLE_ID" 2>/dev/null || echo 0 )
+          NEXT=$(( LATEST + 1 ))
+          echo "Latest build: $LATEST → Next build: $NEXT"
+          agvtool new-version -all "$NEXT"
+        working_directory: ios/App
       - name: Inject Info.plist permissions
         script: |
           PLIST_PATH="ios/App/App/Info.plist"
