@@ -10,7 +10,7 @@ export default function Privacy() {
       <PageHeader title={t('privacyPage.title')} />
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <div className="prose prose-sm prose-stone max-w-none">
-          <p className="text-xs text-stone-400">{t('privacyPage.lastUpdated', { date: '2025-01-01' })}</p>
+          <p className="text-xs text-stone-400">{t('privacyPage.lastUpdated', { date: '2026-04-11' })}</p>
 
           <h2 className="text-base font-semibold">{t('privacyPage.s1Title')}</h2>
           <p>{t('privacyPage.s1Body', { appNameZh: APP_NAME_ZH, appNameEn: APP_NAME_EN })}</p>

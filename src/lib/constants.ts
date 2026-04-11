@@ -4,7 +4,7 @@ export const APP_VERSION = '1.0.0';
 export const APP_NAME_ZH = '阿基米●聊';
 export const APP_TAGLINE = '安全连接，畅快沟通';
 export const APP_TAGLINE_EN = 'Secure connections, seamless communication';
-export const SUPPORT_EMAIL = 'support@archimi.chat';
+export const SUPPORT_EMAIL = 'info@archime.chat';
 
 export const COLORS = {
   primary: '#F97316',
