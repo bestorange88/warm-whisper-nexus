@@ -6,6 +6,9 @@ workflows:
     environment:
       groups:
         - ios_credentials
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: "chat.archime.app"
       vars:
         BUNDLE_ID: "chat.archime.app"
         APPLE_TEAM_ID: "S54QM22WX2"
@@ -104,116 +107,22 @@ workflows:
 
           echo "Using project for code signing: $PROJECT_PATH"
 
-          PROFILE_SOURCE="ios/signing/${IOS_PROFILE_NAME}.mobileprovision"
-          PROFILE_INSTALLED="false"
-
-          keychain initialize
-
-          if [ -f "$PROFILE_SOURCE" ]; then
-            mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-            TMP_PLIST="$(mktemp /tmp/${IOS_PROFILE_NAME}.XXXXXX.plist)"
-            /usr/bin/security cms -D -i "$PROFILE_SOURCE" > "$TMP_PLIST"
-            PROFILE_UUID="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$TMP_PLIST")"
-            cp "$PROFILE_SOURCE" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
-            PROFILE_INSTALLED="true"
-            echo "Installed provisioning profile from repository: $PROFILE_SOURCE"
-          fi
-
-          if [ "$PROFILE_INSTALLED" != "true" ] && test -n "$APP_STORE_CONNECT_KEY_IDENTIFIER" && test -n "$APP_STORE_CONNECT_ISSUER_ID" && test -n "$APP_STORE_CONNECT_PRIVATE_KEY"; then
-            app-store-connect fetch-signing-files "$BUNDLE_ID" \
-              --platform IOS \
-              --type IOS_APP_STORE \
-              --strict-match-identifier \
-              --create
-          fi
-
-          keychain add-certificates
           xcode-project use-profiles \
             --project "$PROJECT_PATH" \
             --archive-method app-store \
-            --code-signing-setup-verbose-logging || true
+            --code-signing-setup-verbose-logging
 
           echo "Installed provisioning profiles:"
           ls "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles" || true
           ls "$HOME/Library/MobileDevice/Provisioning Profiles" || true
 
-          echo "Signing summary before manual fallback:"
-          xcodebuild -project "$PROJECT_PATH" -scheme "$XCODE_SCHEME" -showBuildSettings | grep -E "PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|CODE_SIGN_STYLE|PROVISIONING_PROFILE_SPECIFIER|PROVISIONING_PROFILE" || true
-      - name: Enforce manual signing fallback
-        script: |
-          PROJECT_PATH="$XCODE_PROJECT"
-          if [ ! -d "$PROJECT_PATH" ]; then
-            PROJECT_PATH="$(find ios -maxdepth 4 -name '*.xcodeproj' | head -n 1)"
-          fi
-
-          PBXPROJ_PATH="$PROJECT_PATH/project.pbxproj"
-          if [ ! -f "$PBXPROJ_PATH" ]; then
-            echo "project.pbxproj not found at $PBXPROJ_PATH"
-            exit 1
-          fi
-
-          python3 - "$PBXPROJ_PATH" "$BUNDLE_ID" "$APPLE_TEAM_ID" "$IOS_PROFILE_NAME" <<'PY'
-          from pathlib import Path
-          import re
-          import sys
-
-          path = Path(sys.argv[1])
-          bundle_id, team_id, profile_name = sys.argv[2], sys.argv[3], sys.argv[4]
-          text = path.read_text()
-
-          text = text.replace("ProvisioningStyle = Automatic;", "ProvisioningStyle = Manual;")
-
-          pattern = re.compile(
-              r'(?P<header>\t\t[A-F0-9]+ /\* (?P<name>Debug|Release) \*/ = \{\n\t\t\tisa = XCBuildConfiguration;\n(?:\t\t\tbaseConfigurationReference = .*?;\n)?\t\t\tbuildSettings = \{\n)(?P<body>.*?)(?P<footer>\t\t\t\};\n\t\t\tname = (?P=name);\n\t\t\};)',
-              re.S,
-          )
-
-          def patch(match: re.Match[str]) -> str:
-              body = match.group("body")
-              if "PRODUCT_BUNDLE_IDENTIFIER =" not in body:
-                  return match.group(0)
-
-              lines = []
-              for raw_line in body.splitlines():
-                  stripped = raw_line.strip()
-                  if stripped.startswith((
-                      "CODE_SIGN_STYLE =",
-                      "DEVELOPMENT_TEAM =",
-                      "PROVISIONING_PROFILE_SPECIFIER =",
-                      "PROVISIONING_PROFILE =",
-                      "CODE_SIGN_IDENTITY =",
-                  )):
-                      continue
-                  if stripped.startswith("PRODUCT_BUNDLE_IDENTIFIER ="):
-                      indent = raw_line[: len(raw_line) - len(raw_line.lstrip())]
-                      lines.append(f"{indent}PRODUCT_BUNDLE_IDENTIFIER = {bundle_id};")
-                      lines.append(f"{indent}CODE_SIGN_STYLE = Manual;")
-                      lines.append(f"{indent}DEVELOPMENT_TEAM = {team_id};")
-                      lines.append(f'{indent}CODE_SIGN_IDENTITY = "Apple Distribution";')
-                      lines.append(f"{indent}PROVISIONING_PROFILE_SPECIFIER = {profile_name};")
-                      continue
-                  lines.append(raw_line)
-
-              return match.group("header") + "\n".join(lines) + "\n" + match.group("footer")
-
-          updated = pattern.sub(patch, text)
-          if updated == text:
-              raise SystemExit("Failed to apply manual signing fallback to project.pbxproj")
-          path.write_text(updated)
-          PY
-
-          echo "Signing summary after manual fallback:"
+          echo "Signing summary after profile mapping:"
           xcodebuild -project "$PROJECT_PATH" -scheme "$XCODE_SCHEME" -showBuildSettings | grep -E "PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|CODE_SIGN_STYLE|PROVISIONING_PROFILE_SPECIFIER|PROVISIONING_PROFILE|CODE_SIGN_IDENTITY" || true
       - name: Build IPA
         script: |
           PODFILE_PATH="$(find ios -maxdepth 4 -name Podfile | head -n 1)"
           WORKSPACE_PATH=""
           PROJECT_PATH="$XCODE_PROJECT"
-
-          export DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
-          export PROVISIONING_PROFILE_SPECIFIER="$IOS_PROFILE_NAME"
-          export CODE_SIGN_IDENTITY="Apple Distribution"
-          export PRODUCT_BUNDLE_IDENTIFIER="$BUNDLE_ID"
 
           if [ -n "$PODFILE_PATH" ]; then
             WORKSPACE_PATH="$XCODE_WORKSPACE"
