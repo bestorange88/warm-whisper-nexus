@@ -31,12 +31,38 @@ workflows:
             echo "iOS platform directory was not created"
             exit 1
           fi
+      - name: Inject Info.plist permissions
+        script: |
+          PLIST_PATH="ios/App/App/Info.plist"
+          if [ ! -f "$PLIST_PATH" ]; then
+            echo "Info.plist not found at $PLIST_PATH"
+            exit 1
+          fi
+
+          # Camera – video calls
+          if ! /usr/libexec/PlistBuddy -c "Print :NSCameraUsageDescription" "$PLIST_PATH" 2>/dev/null; then
+            /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string '用于视频通话'" "$PLIST_PATH"
+          fi
+
+          # Microphone – voice & video calls
+          if ! /usr/libexec/PlistBuddy -c "Print :NSMicrophoneUsageDescription" "$PLIST_PATH" 2>/dev/null; then
+            /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string '用于语音通话和视频通话'" "$PLIST_PATH"
+          fi
+
+          # Photo Library – send images
+          if ! /usr/libexec/PlistBuddy -c "Print :NSPhotoLibraryUsageDescription" "$PLIST_PATH" 2>/dev/null; then
+            /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string '用于选择和发送图片'" "$PLIST_PATH"
+          fi
+
+          echo "Info.plist permissions configured:"
+          /usr/libexec/PlistBuddy -c "Print :NSCameraUsageDescription" "$PLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Print :NSMicrophoneUsageDescription" "$PLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Print :NSPhotoLibraryUsageDescription" "$PLIST_PATH"
       - name: Install CocoaPods if needed
         script: |
           PODFILE_DIR="$(find ios -maxdepth 3 -name Podfile -exec dirname {} \; | head -n 1)"
           if [ -z "$PODFILE_DIR" ]; then
-            echo "No Podfile found after Capacitor sync; continuing with Swift Package Manager"
-            ls ios/App || true
+            echo "No Podfile found; project uses Swift Package Manager — skipping CocoaPods"
             exit 0
           fi
           cd "$PODFILE_DIR"
