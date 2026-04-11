@@ -43,10 +43,37 @@ workflows:
           pod install --repo-update
       - name: Set up code signing
         script: |
+          PROJECT_PATH="$XCODE_PROJECT"
+          if [ ! -d "$PROJECT_PATH" ]; then
+            PROJECT_PATH="$(find ios -maxdepth 4 -name '*.xcodeproj' | head -n 1)"
+          fi
+
+          if [ -z "$PROJECT_PATH" ] || [ ! -d "$PROJECT_PATH" ]; then
+            echo "No Xcode project found for code signing"
+            ls -R ios || true
+            exit 1
+          fi
+
+          echo "Using project for code signing: $PROJECT_PATH"
+
           keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --platform IOS \
+            --type IOS_APP_STORE \
+            --strict-match-identifier \
+            --create
           keychain add-certificates
-          xcode-project use-profiles
+          xcode-project use-profiles \
+            --project "$PROJECT_PATH" \
+            --archive-method app-store \
+            --code-signing-setup-verbose-logging
+
+          echo "Installed provisioning profiles:"
+          ls "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles" || true
+          ls "$HOME/Library/MobileDevice/Provisioning Profiles" || true
+
+          echo "Signing summary:"
+          xcodebuild -project "$PROJECT_PATH" -scheme "$XCODE_SCHEME" -showBuildSettings | grep -E "PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|CODE_SIGN_STYLE|PROVISIONING_PROFILE_SPECIFIER|PROVISIONING_PROFILE" || true
       - name: Build IPA
         script: |
           PODFILE_PATH="$(find ios -maxdepth 4 -name Podfile | head -n 1)"
