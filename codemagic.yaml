@@ -41,23 +41,43 @@ workflows:
 
           # Camera – video calls
           if ! /usr/libexec/PlistBuddy -c "Print :NSCameraUsageDescription" "$PLIST_PATH" 2>/dev/null; then
-            /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string '用于视频通话'" "$PLIST_PATH"
+            /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string '用于视频通话 / Used for video calls'" "$PLIST_PATH"
           fi
 
           # Microphone – voice & video calls
           if ! /usr/libexec/PlistBuddy -c "Print :NSMicrophoneUsageDescription" "$PLIST_PATH" 2>/dev/null; then
-            /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string '用于语音通话和视频通话'" "$PLIST_PATH"
+            /usr/libexec/PlistBuddy -c "Add :NSMicrophoneUsageDescription string '用于语音通话和视频通话 / Used for voice and video calls'" "$PLIST_PATH"
           fi
 
           # Photo Library – send images
           if ! /usr/libexec/PlistBuddy -c "Print :NSPhotoLibraryUsageDescription" "$PLIST_PATH" 2>/dev/null; then
-            /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string '用于选择和发送图片'" "$PLIST_PATH"
+            /usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string '用于选择和发送图片 / Used to select and send photos'" "$PLIST_PATH"
           fi
 
           echo "Info.plist permissions configured:"
           /usr/libexec/PlistBuddy -c "Print :NSCameraUsageDescription" "$PLIST_PATH"
           /usr/libexec/PlistBuddy -c "Print :NSMicrophoneUsageDescription" "$PLIST_PATH"
           /usr/libexec/PlistBuddy -c "Print :NSPhotoLibraryUsageDescription" "$PLIST_PATH"
+
+          # Create localized InfoPlist.strings for Chinese
+          ZH_LPROJ="ios/App/App/zh-Hans.lproj"
+          mkdir -p "$ZH_LPROJ"
+          cat > "$ZH_LPROJ/InfoPlist.strings" << 'EOF'
+          NSCameraUsageDescription = "用于视频通话";
+          NSMicrophoneUsageDescription = "用于语音通话和视频通话";
+          NSPhotoLibraryUsageDescription = "用于选择和发送图片";
+          EOF
+
+          # Create localized InfoPlist.strings for English
+          EN_LPROJ="ios/App/App/en.lproj"
+          mkdir -p "$EN_LPROJ"
+          cat > "$EN_LPROJ/InfoPlist.strings" << 'EOF'
+          NSCameraUsageDescription = "Used for video calls";
+          NSMicrophoneUsageDescription = "Used for voice and video calls";
+          NSPhotoLibraryUsageDescription = "Used to select and send photos";
+          EOF
+
+          echo "Localized InfoPlist.strings created for zh-Hans and en"
       - name: Install CocoaPods if needed
         script: |
           PODFILE_DIR="$(find ios -maxdepth 3 -name Podfile -exec dirname {} \; | head -n 1)"
