@@ -8,6 +8,7 @@ workflows:
         - ios_credentials
       vars:
         BUNDLE_ID: "chat.archime.app"
+        XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
       node: 22
@@ -30,13 +31,13 @@ workflows:
             echo "iOS platform directory was not created"
             exit 1
           fi
-      - name: Install CocoaPods
+      - name: Install CocoaPods if needed
         script: |
           PODFILE_DIR="$(find ios -maxdepth 3 -name Podfile -exec dirname {} \; | head -n 1)"
           if [ -z "$PODFILE_DIR" ]; then
-            echo "No Podfile found after Capacitor sync"
-            ls -R ios || true
-            exit 1
+            echo "No Podfile found after Capacitor sync; continuing with Swift Package Manager"
+            ls ios/App || true
+            exit 0
           fi
           cd "$PODFILE_DIR"
           pod install --repo-update
@@ -48,18 +49,37 @@ workflows:
           xcode-project use-profiles
       - name: Build IPA
         script: |
-          WORKSPACE_PATH="$XCODE_WORKSPACE"
-          if [ ! -f "$WORKSPACE_PATH" ]; then
-            WORKSPACE_PATH="$(find ios -maxdepth 4 -name '*.xcworkspace' | head -n 1)"
+          PODFILE_PATH="$(find ios -maxdepth 4 -name Podfile | head -n 1)"
+          WORKSPACE_PATH=""
+          PROJECT_PATH="$XCODE_PROJECT"
+
+          if [ -n "$PODFILE_PATH" ]; then
+            WORKSPACE_PATH="$XCODE_WORKSPACE"
+            if [ ! -d "$WORKSPACE_PATH" ]; then
+              WORKSPACE_PATH="$(find ios -maxdepth 4 -name '*.xcworkspace' -not -path '*/project.xcworkspace' | head -n 1)"
+            fi
           fi
-          if [ -z "$WORKSPACE_PATH" ] || [ ! -f "$WORKSPACE_PATH" ]; then
-            echo "No Xcode workspace found"
+
+          if [ -n "$WORKSPACE_PATH" ] && [ -d "$WORKSPACE_PATH" ]; then
+            xcode-project build-ipa \
+              --workspace "$WORKSPACE_PATH" \
+              --scheme "$XCODE_SCHEME"
+            exit 0
+          fi
+
+          if [ ! -d "$PROJECT_PATH" ]; then
+            PROJECT_PATH="$(find ios -maxdepth 4 -name '*.xcodeproj' | head -n 1)"
+          fi
+
+          if [ -n "$PROJECT_PATH" ] && [ -d "$PROJECT_PATH" ]; then
+            xcode-project build-ipa \
+              --project "$PROJECT_PATH" \
+              --scheme "$XCODE_SCHEME"
+          else
+            echo "No Xcode workspace or project found"
             ls -R ios || true
             exit 1
           fi
-          xcode-project build-ipa \
-            --workspace "$WORKSPACE_PATH" \
-            --scheme "$XCODE_SCHEME"
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
