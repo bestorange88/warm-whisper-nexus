@@ -44,5 +44,20 @@ export function useAuth() {
     return { error };
   };
 
-  return { user, session, loading, signUp, signIn, signOut };
+  const acceptTerms = async (termsVersion: string) => {
+    const { data, error } = await supabase.auth.updateUser({
+      data: {
+        ...user?.user_metadata,
+        terms_accepted_at: new Date().toISOString(),
+        terms_version: termsVersion,
+        ugc_policy_acknowledged: true,
+      },
+    });
+    if (!error && data.user) {
+      setUser(data.user);
+    }
+    return { data, error };
+  };
+
+  return { user, session, loading, signUp, signIn, signOut, acceptTerms };
 }

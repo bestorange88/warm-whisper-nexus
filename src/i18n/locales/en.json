@@ -49,6 +49,10 @@
     "privacyPolicy": "Privacy Policy",
     "agreeTerms": "By signing up, you agree to our",
     "and": "and",
+    "iAgreeTo": "I have read and agree to the",
+    "zeroToleranceNotice": ", and I understand there is zero tolerance for objectionable content and abusive users.",
+    "acceptRequired": "Please agree to the Terms of Service and Privacy Policy first",
+    "usernameBlocked": "This username may contain inappropriate content. Please choose another.",
     "invalidCredentials": "Invalid email or password",
     "loginFailed": "Login failed, please try again",
     "registerFailed": "Registration failed, please try again",
@@ -117,7 +121,8 @@
     "searchMessages": "Search messages",
     "searchMessagesPlaceholder": "Search chat history...",
     "noSearchResults": "No messages found",
-    "mentionAll": "Everyone"
+    "mentionAll": "Everyone",
+    "blockedBySafetyFilter": "Message not sent: possible objectionable content detected. Please revise and try again."
   },
   "contacts": {
     "friendRequests": "Friend Requests",
@@ -308,6 +313,22 @@
     "reported": "Report Submitted",
     "reportedDesc": "Thank you for your feedback. We'll review it shortly."
   },
+  "termsConsent": {
+    "title": "Agree to Terms",
+    "headline": "Please confirm the community safety rules before accessing chats",
+    "description": "You need to agree to the Terms of Service and confirm that this app has zero tolerance for objectionable content and abusive users.",
+    "rule1": "Harassment, sexual content, scams, violent threats, and similar abuse are prohibited",
+    "rule2": "Suspicious content may be filtered automatically; users can report messages or block users at any time",
+    "rule3": "Blocking instantly removes that user's content from your feed and notifies the developer for review",
+    "rule4": "Reports and block signals are reviewed within 24 hours",
+    "checkbox": "I have read and agree to the Terms of Service and Privacy Policy, and I understand these community rules",
+    "continue": "Agree and Continue",
+    "continueLoading": "Submitting...",
+    "required": "Please check the box before continuing",
+    "updateFailed": "Failed to save your agreement. Please try again.",
+    "viewTerms": "View Terms of Service",
+    "viewPrivacy": "View Privacy Policy"
+  },
   "deleteAccount": {
     "title": "Delete Account",
     "warning": "Warning: This action cannot be undone",
@@ -371,9 +392,9 @@
     "s3i4": "Distribute malware or conduct cyberattacks",
     "s3i5": "Use the service for any illegal activities",
     "s4Title": "4. Content Moderation",
-    "s4Body": "We reserve the right to take action against content that violates community guidelines, including but not limited to removing content, restricting accounts, or terminating service.",
+    "s4Body": "We maintain zero tolerance for objectionable content and abusive users. We use automated filtering and manual review to address harassment, sexual content, scams, violent threats, and similar abuse, and may remove content, restrict accounts, or terminate service.",
     "s5Title": "5. Reporting & Blocking",
-    "s5Body": "You may report violating users and messages, and block users you do not wish to contact. We will review and handle reports accordingly.",
+    "s5Body": "You may report violating users or messages, and block users you do not wish to contact. Blocking immediately hides that user's content from your feed and notifies the developer for review. Related reports and block signals are handled within 24 hours.",
     "s6Title": "6. Account Deletion",
     "s6Body": "You may request account deletion at any time in Settings. After submission, there is a 7-day cooling period, after which your account and related data will be permanently deleted.",
     "s7Title": "7. Disclaimer",

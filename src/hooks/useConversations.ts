@@ -9,6 +9,13 @@ export function useConversations(userId?: string) {
     queryFn: async () => {
       if (!userId) return [];
 
+      // Fetch blocked users to hide their conversations
+      const { data: blocks } = await supabase
+        .from('blocks')
+        .select('blocked_id')
+        .eq('blocker_id', userId);
+      const blockedSet = new Set((blocks || []).map((b) => b.blocked_id));
+
       // Get user's conversation memberships
       const { data: memberships, error: memErr } = await supabase
         .from('conversation_members')
@@ -55,6 +62,12 @@ export function useConversations(userId?: string) {
             .select('user_id')
             .eq('conversation_id', c.id);
           const otherUserId = members?.find((m) => m.user_id !== userId)?.user_id;
+
+          // Skip conversations with blocked users
+          if (otherUserId && blockedSet.has(otherUserId)) {
+            continue;
+          }
+
           if (otherUserId) {
             const { data: profile } = await supabase
               .from('public_profiles' as any)
@@ -176,6 +189,19 @@ export function useMessages(conversationId?: string) {
     queryKey: ['messages', conversationId],
     queryFn: async () => {
       if (!conversationId) return [];
+
+      // Filter out messages from blocked users
+      const { data: authData } = await supabase.auth.getUser();
+      const currentUserId = authData.user?.id;
+      let blockedSet = new Set<string>();
+      if (currentUserId) {
+        const { data: blocks } = await supabase
+          .from('blocks')
+          .select('blocked_id')
+          .eq('blocker_id', currentUserId);
+        blockedSet = new Set((blocks || []).map((b) => b.blocked_id));
+      }
+
       const { data: msgs, error } = await supabase
         .from('messages')
         .select('*')
@@ -186,14 +212,19 @@ export function useMessages(conversationId?: string) {
       if (error) throw error;
       if (!msgs || msgs.length === 0) return [];
 
+      // Remove messages from blocked users
+      const visibleMsgs = currentUserId
+        ? msgs.filter((m) => m.sender_id === currentUserId || !blockedSet.has(m.sender_id))
+        : msgs;
+
       // Fetch sender profiles via public_profiles view
-      const senderIds = [...new Set(msgs.map((m) => m.sender_id))];
+      const senderIds = [...new Set(visibleMsgs.map((m) => m.sender_id))];
       const { data: profiles } = await supabase
         .from('public_profiles' as any)
         .select('*')
         .in('id', senderIds);
 
-      return msgs.map((m) => ({
+      return visibleMsgs.map((m) => ({
         ...m,
         sender: (profiles as any[])?.find((p: any) => p.id === m.sender_id) || null,
       })) as unknown as Message[];

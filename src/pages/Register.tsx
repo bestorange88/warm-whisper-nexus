@@ -6,6 +6,9 @@ import { useAuth } from '@/hooks/useAuth';
 
 import { useTranslation } from 'react-i18next';
 import logoImage from '@/assets/logo.png';
+import { containsObjectionableContent } from '@/lib/moderation';
+
+const TERMS_VERSION = '2026-04-15';
 
 export default function Register() {
   const { t } = useTranslation();
@@ -13,6 +16,7 @@ export default function Register() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signUp } = useAuth();
@@ -24,6 +28,8 @@ export default function Register() {
     if (password !== confirmPassword) { setError(t('auth.passwordMismatch')); return; }
     if (password.length < 6) { setError(t('auth.passwordTooShort')); return; }
     if (username.length < 2) { setError(t('auth.usernameTooShort')); return; }
+    if (!acceptedTerms) { setError(t('auth.acceptRequired')); return; }
+    if (containsObjectionableContent(username)) { setError(t('auth.usernameBlocked')); setLoading(false); return; }
 
     setLoading(true);
     try {
@@ -37,8 +43,8 @@ export default function Register() {
   };
 
   return (
-    <div className="flex h-full flex-col items-center justify-center bg-white px-6">
-      <div className="w-full max-w-sm">
+    <div className="safe-area-top safe-area-bottom flex h-full flex-col overflow-y-auto bg-background">
+      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center px-6 py-8">
         <div className="mb-8 flex flex-col items-center">
           <img src={logoImage} alt={t('app.name')} className="mb-4 h-16 w-16 rounded-2xl shadow-lg" />
           <h1 className="text-xl font-bold text-stone-900">{t('auth.registerTitle', { appName: t('app.name') })}</h1>
@@ -62,6 +68,21 @@ export default function Register() {
             <label className="mb-1.5 block text-sm font-medium text-stone-700">{t('auth.confirmPassword')}</label>
             <Input type="password" placeholder={t('auth.confirmPasswordPlaceholder')} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
           </div>
+          <label className="flex items-start gap-3 rounded-lg border border-stone-200 bg-stone-50 px-3 py-3 text-sm text-stone-600">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-current"
+            />
+            <span>
+              {t('auth.iAgreeTo')}
+              <Link to="/terms" className="text-brand"> {t('auth.termsOfService')} </Link>
+              {t('auth.and')}
+              <Link to="/privacy" className="text-brand"> {t('auth.privacyPolicy')} </Link>
+              {t('auth.zeroToleranceNotice')}
+            </span>
+          </label>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? t('auth.registering') : t('auth.register')}
           </Button>
@@ -72,12 +93,6 @@ export default function Register() {
           <Link to="/login" className="ml-1 text-brand hover:text-brand-dark">{t('auth.loginNow')}</Link>
         </div>
 
-        <p className="mt-4 text-center text-xs text-stone-400">
-          {t('auth.agreeTerms')}
-          <Link to="/terms" className="text-brand"> {t('auth.termsOfService')} </Link>
-          {t('auth.and')}
-          <Link to="/privacy" className="text-brand"> {t('auth.privacyPolicy')}</Link>
-        </p>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
@@ -36,6 +36,9 @@ const Help = lazy(() => import('@/pages/Help'));
 const Terms = lazy(() => import('@/pages/Terms'));
 const Privacy = lazy(() => import('@/pages/Privacy'));
 const About = lazy(() => import('@/pages/About'));
+const TermsConsent = lazy(() => import('@/pages/TermsConsent'));
+
+const TERMS_VERSION = '2026-04-15';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,8 +53,22 @@ const queryClient = new QueryClient({
 
 function ProtectedRoute() {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <FullPageLoading />;
   if (!user) return <Navigate to="/login" replace />;
+
+  const hasAcceptedTerms =
+    user.user_metadata?.terms_version === TERMS_VERSION &&
+    Boolean(user.user_metadata?.terms_accepted_at);
+
+  if (!hasAcceptedTerms && location.pathname !== '/terms-consent') {
+    return <Navigate to="/terms-consent" replace />;
+  }
+
+  if (hasAcceptedTerms && location.pathname === '/terms-consent') {
+    return <Navigate to="/conversations" replace />;
+  }
+
   return <Outlet />;
 }
 
@@ -89,7 +106,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <div className="mx-auto h-[100dvh] w-full max-w-md bg-white shadow-xl">
+        <div className="mx-auto h-[100dvh] w-full max-w-lg bg-background shadow-xl">
           <Routes>
             <Route element={<PublicRoute />}>
               <Route path="/login" element={<PageSuspense><Login /></PageSuspense>} />
@@ -101,6 +118,7 @@ export default function App() {
 
             <Route element={<ProtectedRoute />}>
               <Route element={<AuthenticatedApp />}>
+                <Route path="/terms-consent" element={<PageSuspense><TermsConsent /></PageSuspense>} />
                 <Route element={<MobileLayout />}>
                   <Route path="/conversations" element={<PageSuspense><Conversations /></PageSuspense>} />
                   <Route path="/contacts" element={<PageSuspense><Contacts /></PageSuspense>} />
