@@ -83,8 +83,10 @@ function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete,
     };
   }, [onClose]);
 
-  // Keep menu within viewport
-  const safeY = Math.max(position.y, 120);
+  // Keep menu within viewport - flip to below if near top
+  const menuHeight = 320; // approximate max menu height
+  const showBelow = position.y < menuHeight + 20;
+  const safeY = showBelow ? Math.max(position.y + 10, 10) : Math.max(position.y, 10);
 
   return (
     <>
@@ -92,7 +94,13 @@ function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete,
       <div
         ref={menuRef}
         className="fixed z-50 animate-in fade-in zoom-in-95"
-        style={{ top: safeY, left: Math.min(Math.max(position.x, 100), window.innerWidth - 100), transform: 'translate(-50%, -100%)' }}
+        style={{
+          top: safeY,
+          left: Math.min(Math.max(position.x, 100), window.innerWidth - 100),
+          transform: showBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
+          maxHeight: 'calc(100vh - 20px)',
+          overflowY: 'auto',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Emoji quick reactions */}

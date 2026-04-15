@@ -13,8 +13,12 @@ function Dialog({ open, onOpenChange, children }: DialogProps) {
   return (
     <div className="fixed inset-0 z-50">
       <div className="fixed inset-0 bg-black/50" onClick={() => onOpenChange(false)} />
-      <div className="fixed inset-0 flex items-center justify-center p-4">
-        {children}
+      <div className="fixed inset-0 flex items-center justify-center p-4" onClick={() => onOpenChange(false)}>
+        {React.Children.map(children, child =>
+          React.isValidElement(child)
+            ? React.cloneElement(child as React.ReactElement<any>, { onClick: (e: React.MouseEvent) => { e.stopPropagation(); (child as React.ReactElement<any>).props.onClick?.(e); } })
+            : child
+        )}
       </div>
     </div>
   );
