@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical, X, FileText, Download, Loader2, Check, CheckCheck, Copy, Trash2, Undo2, Reply, Pencil, Forward, Search as SearchIcon, Lock, Flag } from 'lucide-react';
+import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical, X, FileText, Download, Loader2, Check, CheckCheck, Copy, Trash2, Undo2, Reply, Pencil, Forward, Search as SearchIcon, Lock, Flag, Smile } from 'lucide-react';
 import { VoiceRecorder } from '@/components/chat/VoiceRecorder';
 import { VoicePlayer } from '@/components/chat/VoicePlayer';
 import { useAuth } from '@/hooks/useAuth';
@@ -50,6 +50,8 @@ function useMessagePreviewText() {
   };
 }
 
+const QUICK_EMOJIS = ['👍', '😄', '❤️', '🥰', '🔥', '👎', '👏'];
+
 interface MessageMenuProps {
   msg: Message;
   isOwn: boolean;
@@ -62,12 +64,14 @@ interface MessageMenuProps {
   onEdit: () => void;
   onForward: () => void;
   onReport: () => void;
+  onReact: (emoji: string) => void;
 }
 
-function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete, onCopy, onReply, onEdit, onForward, onReport }: MessageMenuProps) {
+function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete, onCopy, onReply, onEdit, onForward, onReport, onReact }: MessageMenuProps) {
   const { t } = useTranslation();
   const canRecall = isOwn && Date.now() - new Date(msg.created_at).getTime() < RECALL_WINDOW_MS;
   const canEdit = isOwn && msg.type === 'text' && msg.content;
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = () => onClose();
@@ -79,44 +83,73 @@ function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete,
     };
   }, [onClose]);
 
+  // Keep menu within viewport
+  const safeY = Math.max(position.y, 120);
+
   return (
-    <div
-      className="fixed z-50 rounded-xl border border-border bg-background shadow-lg py-1 min-w-[120px] animate-in fade-in zoom-in-95"
-      style={{ top: position.y, left: position.x, transform: 'translate(-50%, -100%)' }}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <button onClick={onReply} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
-        <Reply className="h-4 w-4" /> {t('chat.reply')}
-      </button>
-      {msg.type === 'text' && msg.content && (
-        <button onClick={onCopy} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
-          <Copy className="h-4 w-4" /> {t('chat.copy')}
-        </button>
-      )}
-      {canEdit && (
-        <button onClick={onEdit} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
-          <Pencil className="h-4 w-4" /> {t('chat.edit')}
-        </button>
-      )}
-      <button onClick={onForward} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
-        <Forward className="h-4 w-4" /> {t('chat.forward')}
-      </button>
-      {!isOwn && (
-        <button onClick={onReport} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
-          <Flag className="h-4 w-4" /> {t('contacts.report')}
-        </button>
-      )}
-      {canRecall && (
-        <button onClick={onRecall} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
-          <Undo2 className="h-4 w-4" /> {t('chat.recall')}
-        </button>
-      )}
-      {isOwn && (
-        <button onClick={onDelete} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-destructive hover:bg-muted">
-          <Trash2 className="h-4 w-4" /> {t('chat.deleteMessage')}
-        </button>
-      )}
-    </div>
+    <>
+      <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px]" onClick={onClose} />
+      <div
+        ref={menuRef}
+        className="fixed z-50 animate-in fade-in zoom-in-95"
+        style={{ top: safeY, left: Math.min(Math.max(position.x, 100), window.innerWidth - 100), transform: 'translate(-50%, -100%)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Emoji quick reactions */}
+        <div className="mb-2 flex items-center gap-1 rounded-full bg-background/95 px-2 py-1.5 shadow-lg border border-border backdrop-blur-md">
+          {QUICK_EMOJIS.map((emoji) => (
+            <button
+              key={emoji}
+              onClick={() => { onReact(emoji); onClose(); }}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-xl hover:bg-muted active:scale-110 transition-transform"
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+
+        {/* Actions */}
+        <div className="rounded-2xl border border-border bg-background/95 shadow-lg py-1.5 min-w-[140px] backdrop-blur-md">
+          <button onClick={onReply} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
+            <Reply className="h-4 w-4 text-muted-foreground" /> {t('chat.reply')}
+          </button>
+          {msg.type === 'text' && msg.content && (
+            <button onClick={onCopy} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
+              <Copy className="h-4 w-4 text-muted-foreground" /> {t('chat.copy')}
+            </button>
+          )}
+          {canEdit && (
+            <button onClick={onEdit} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
+              <Pencil className="h-4 w-4 text-muted-foreground" /> {t('chat.edit')}
+            </button>
+          )}
+          <button onClick={onForward} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
+            <Forward className="h-4 w-4 text-muted-foreground" /> {t('chat.forward')}
+          </button>
+          {!isOwn && (
+            <button onClick={onReport} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
+              <Flag className="h-4 w-4 text-muted-foreground" /> {t('contacts.report')}
+            </button>
+          )}
+          {canRecall && (
+            <>
+              <div className="mx-3 my-1 border-t border-border" />
+              <button onClick={onRecall} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
+                <Undo2 className="h-4 w-4 text-muted-foreground" /> {t('chat.recall')}
+              </button>
+            </>
+          )}
+          {isOwn && (
+            <>
+              <div className="mx-3 my-1 border-t border-border" />
+              <button onClick={onDelete} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-destructive hover:bg-muted">
+                <Trash2 className="h-4 w-4" /> {t('chat.deleteMessage')}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -194,6 +227,7 @@ export default function ChatDetail() {
   const [searchQuery, setSearchQuery] = useState('');
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -707,6 +741,9 @@ export default function ChatDetail() {
           onEdit={handleEdit}
           onForward={handleForward}
           onReport={handleReportMessage}
+          onReact={(emoji) => {
+            toast(`${emoji}`, { duration: 1500 });
+          }}
         />
       )}
 
@@ -771,8 +808,40 @@ export default function ChatDetail() {
         </div>
       )}
 
+      {/* Emoji picker panel */}
+      {showEmojiPicker && (
+        <div className="border-t border-stone-100 bg-white px-2 py-3">
+          <div className="grid grid-cols-8 gap-1 max-h-48 overflow-y-auto">
+            {['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','😊','😇','🥰','😍','🤩','😘','😗',
+              '😚','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶',
+              '😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🥵',
+              '🥶','🥴','😵','🤯','🤠','🥳','🥸','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲',
+              '😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫',
+              '🥱','😤','😡','😠','🤬','😈','👿','💀','☠️','💩','🤡','👹','👺','👻','👽','👾',
+              '🤖','😺','😸','😹','😻','😼','😽','🙀','😿','😾','👋','🤚','🖐️','✋','🖖','👌',
+              '🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊',
+              '👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','💪','🦾','❤️','🧡','💛','💚','💙',
+              '💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','🔥','⭐',
+              '🌟','✨','💫','🎉','🎊','🎈','🎁','🏆','🥇','🥈','🥉','⚽','🏀','🏈','⚾','🎾',
+              '☀️','🌈','☁️','🌙','🌍','🌊','🍎','🍕','🍔','🍟','🍩','🍦','☕','🍺','🎵','🎶'
+            ].map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => {
+                  setInput(prev => prev + emoji);
+                  inputRef.current?.focus();
+                }}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-xl hover:bg-stone-100 active:bg-stone-200 transition-colors"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="safe-area-bottom shrink-0 border-t border-stone-100 bg-white px-3 py-2">
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-1.5">
           <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
           <input ref={fileInputRef} type="file" accept="*/*" className="hidden" onChange={handleFileSelect} />
           <button onClick={() => imageInputRef.current?.click()} disabled={uploading} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 disabled:opacity-50">
@@ -781,12 +850,16 @@ export default function ChatDetail() {
           <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 disabled:opacity-50">
             <Paperclip className="h-5 w-5" />
           </button>
+          <button onClick={() => setShowEmojiPicker(prev => !prev)} className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-stone-100", showEmojiPicker ? "text-brand" : "text-stone-400")}>
+            <Smile className="h-5 w-5" />
+          </button>
           <div className="flex-1">
             <textarea
               ref={inputRef}
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
+              onFocus={() => setShowEmojiPicker(false)}
               placeholder={editingMsg ? t('chat.editMessage') : t('chat.inputPlaceholder')}
               rows={1}
               className="w-full resize-none rounded-2xl border-0 bg-stone-100 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
