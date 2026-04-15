@@ -93,9 +93,9 @@
     },
   },
   "packages": {
-    "@100mslive/hms-video-store": ["@100mslive/hms-video-store@0.13.2", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@100mslive/hms-video-store/-/hms-video-store-0.13.2.tgz", { "dependencies": { "eventemitter2": "^6.4.9", "immer": "^9.0.6", "lodash.isequal": "^4.5.0", "reselect": "4.0.0", "sdp-transform": "^2.14.1", "ua-parser-js": "^2.0.6", "uuid": "^8.3.2", "webrtc-adapter": "^8.0.0", "zustand": "3.5.7" } }, "sha512-yfNY3KXRaqD/mgnQaEHo+RTs4ZT3e6Fwdzc7m0oHT4YNUTJEerJdekSjKj1kLJLi9RvoOzkP10q8TpUbHQThpw=="],
+    "@100mslive/hms-video-store": ["@100mslive/hms-video-store@0.13.3", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@100mslive/hms-video-store/-/hms-video-store-0.13.3.tgz", { "dependencies": { "eventemitter2": "^6.4.9", "immer": "^9.0.6", "lodash.isequal": "^4.5.0", "reselect": "4.0.0", "sdp-transform": "^2.14.1", "ua-parser-js": "^2.0.6", "uuid": "^8.3.2", "webrtc-adapter": "^8.0.0", "zustand": "3.5.7" } }, "sha512-OAmOJJdI4MUBsE1rZ+Siw4am6eDL4SQNKG3hQsSpS5V/XFUVhgiS3FN8ac8OrZ9kVys17SH3+T3ov3is7nzf2g=="],
 
-    "@100mslive/react-sdk": ["@100mslive/react-sdk@0.11.2", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@100mslive/react-sdk/-/react-sdk-0.11.2.tgz", { "dependencies": { "@100mslive/hms-video-store": "0.13.2", "react-resize-detector": "^7.0.0", "zustand": "^3.6.2" }, "peerDependencies": { "react": ">=16.8 <19.0.0" } }, "sha512-ihqy+tKzOB4HZpt+r17HyTgtgPFuj0j0b2JuGr0OwXA7vLb34YW5d95S856LDLuX4EUfpuksriBWVBtnpP64zQ=="],
+    "@100mslive/react-sdk": ["@100mslive/react-sdk@0.11.3", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@100mslive/react-sdk/-/react-sdk-0.11.3.tgz", { "dependencies": { "@100mslive/hms-video-store": "0.13.3", "react-resize-detector": "^7.0.0", "zustand": "^3.6.2" }, "peerDependencies": { "react": ">=16.8 <19.0.0" } }, "sha512-JqJrDzUpVJRn55RoowJs9BLI9jTx6laoq42oq5YMyCVrp1EeC1N9s9gI54J4/8VUM04a00vtOHpEEIqRKqGIwg=="],
 
     "@adobe/css-tools": ["@adobe/css-tools@4.4.4", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@adobe/css-tools/-/css-tools-4.4.4.tgz", {}, "sha512-Elp+iwUx5rN5+Y8xLt5/GRoG20WGoDCQ/1Fb+1LiGtvwbDavuSk0jhD/eZdckHAuzcDzccnkv+rEjyWfRx18gg=="],
 
