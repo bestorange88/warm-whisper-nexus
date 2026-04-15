@@ -452,5 +452,21 @@
     "deleteFailed": "删除失败",
     "saveFailed": "保存失败",
     "operationFailed": "操作失败"
+  },
+  "termsConsent": {
+    "title": "社区准则",
+    "headline": "继续使用前请阅读并同意",
+    "description": "为了维护社区安全，我们对不当内容和滥用行为实行严格的零容忍政策。",
+    "rule1": "随时举报不当内容或滥用行为",
+    "rule2": "严禁骚扰、仇恨言论或色情内容",
+    "rule3": "拉黑滥用用户 — 其内容将立即隐藏",
+    "rule4": "举报将在 24 小时内处理，违规者将被移除",
+    "checkbox": "我已阅读并同意《服务条款》和《隐私政策》，并理解违规将导致账号被移除",
+    "required": "您必须同意才能继续",
+    "updateFailed": "保存失败，请重试",
+    "viewTerms": "服务条款",
+    "viewPrivacy": "隐私政策",
+    "continue": "同意并继续",
+    "continueLoading": "处理中..."
   }
 }

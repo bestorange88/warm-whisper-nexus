@@ -452,5 +452,21 @@
     "deleteFailed": "Delete failed",
     "saveFailed": "Save failed",
     "operationFailed": "Operation failed"
+  },
+  "termsConsent": {
+    "title": "Community Guidelines",
+    "headline": "Please review and accept before continuing",
+    "description": "To keep our community safe, we enforce a strict zero-tolerance policy against objectionable content and abusive behavior.",
+    "rule1": "Report objectionable content or abusive users at any time",
+    "rule2": "Zero tolerance for harassment, hate speech, or explicit content",
+    "rule3": "Block abusive users — their content will be hidden immediately",
+    "rule4": "Reports are reviewed within 24 hours; violators will be removed",
+    "checkbox": "I have read and agree to the Terms of Service and Privacy Policy, and I understand that violations will result in account removal",
+    "required": "You must agree to continue",
+    "updateFailed": "Failed to save, please try again",
+    "viewTerms": "Terms of Service",
+    "viewPrivacy": "Privacy Policy",
+    "continue": "Agree & Continue",
+    "continueLoading": "Processing..."
   }
 }
