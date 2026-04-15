@@ -106,7 +106,9 @@ export function ActiveCallScreen() {
   }, [callState, activeCall?.hmsToken, join, activeCall?.callerName, activeCall?.calleeName, t]);
 
   useEffect(() => {
-    if (isConnected && (callState === 'connecting' || callState === 'dialing')) {
+    // Only notify connected when in 'connecting' (after callee accepted)
+    // Not during 'dialing' — caller must wait for callee to accept
+    if (isConnected && callState === 'connecting') {
       onHmsConnected?.();
     }
   }, [isConnected, callState, onHmsConnected]);

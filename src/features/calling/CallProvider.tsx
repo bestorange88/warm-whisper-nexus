@@ -280,8 +280,11 @@ export function CallProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /** Called by ActiveCallScreen when 100ms room is connected */
+  /** Called by ActiveCallScreen when 100ms room is connected */
   const onHmsConnected = useCallback(() => {
-    if (stateRef.current.callState === 'connecting' || stateRef.current.callState === 'dialing') {
+    // Only transition to connected when in 'connecting' state (callee accepted)
+    // During 'dialing', the caller joins HMS early but must wait for REMOTE_ACCEPTED
+    if (stateRef.current.callState === 'connecting') {
       dispatch({ type: 'CONNECTED' });
     }
   }, []);
