@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical, X, FileText, Download, Loader2, Check, CheckCheck, Copy, Trash2, Undo2, Reply, Pencil, Forward, Search as SearchIcon, Lock } from 'lucide-react';
+import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical, X, FileText, Download, Loader2, Check, CheckCheck, Copy, Trash2, Undo2, Reply, Pencil, Forward, Search as SearchIcon, Lock, Flag } from 'lucide-react';
 import { VoiceRecorder } from '@/components/chat/VoiceRecorder';
 import { VoicePlayer } from '@/components/chat/VoicePlayer';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { useE2EESetup, useE2EEChat } from '@/hooks/useE2EE';
 import { isEncryptedPayload } from '@/lib/e2ee/crypto';
+import { containsObjectionableContent } from '@/lib/moderation';
 import type { Message } from '@/types';
 
 
@@ -60,9 +61,10 @@ interface MessageMenuProps {
   onReply: () => void;
   onEdit: () => void;
   onForward: () => void;
+  onReport: () => void;
 }
 
-function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete, onCopy, onReply, onEdit, onForward }: MessageMenuProps) {
+function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete, onCopy, onReply, onEdit, onForward, onReport }: MessageMenuProps) {
   const { t } = useTranslation();
   const canRecall = isOwn && Date.now() - new Date(msg.created_at).getTime() < RECALL_WINDOW_MS;
   const canEdit = isOwn && msg.type === 'text' && msg.content;
@@ -99,6 +101,11 @@ function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete,
       <button onClick={onForward} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
         <Forward className="h-4 w-4" /> {t('chat.forward')}
       </button>
+      {!isOwn && (
+        <button onClick={onReport} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
+          <Flag className="h-4 w-4" /> {t('contacts.report')}
+        </button>
+      )}
       {canRecall && (
         <button onClick={onRecall} className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
           <Undo2 className="h-4 w-4" /> {t('chat.recall')}
@@ -243,6 +250,12 @@ export default function ChatDetail() {
   const handleSend = async () => {
     if (!input.trim() || !user || !conversationId) return;
     const content = input.trim();
+
+    if (containsObjectionableContent(content)) {
+      toast.error(t('chat.blockedBySafetyFilter'));
+      return;
+    }
+
     setInput('');
 
     // If editing a message, update it instead of sending new
@@ -492,6 +505,13 @@ export default function ChatDetail() {
     setContextMenu(null);
   };
 
+  const handleReportMessage = () => {
+    if (!contextMenu) return;
+    const messageId = contextMenu.msg.id;
+    setContextMenu(null);
+    navigate(`/report/message/${messageId}`);
+  };
+
   const handleForwardTo = async (targetConvId: string) => {
     if (!forwardMsg || !user) return;
     try {
@@ -686,6 +706,7 @@ export default function ChatDetail() {
           onReply={handleReply}
           onEdit={handleEdit}
           onForward={handleForward}
+          onReport={handleReportMessage}
         />
       )}
 

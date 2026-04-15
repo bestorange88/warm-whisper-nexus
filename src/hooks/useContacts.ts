@@ -143,17 +143,54 @@ export function useBlockUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (params: { blocker_id: string; blocked_id: string; reason?: string }) => {
+      // Check for existing block
+      const { data: existingBlock } = await supabase
+        .from('blocks')
+        .select('*')
+        .eq('blocker_id', params.blocker_id)
+        .eq('blocked_id', params.blocked_id)
+        .limit(1);
+      if (existingBlock && existingBlock.length > 0) {
+        return existingBlock[0] as unknown as Block;
+      }
+
       const { data, error } = await supabase
         .from('blocks')
         .insert(params)
         .select()
         .single();
       if (error) throw error;
+
+      // Remove friendship, reject pending requests, and auto-report for developer review
+      await Promise.allSettled([
+        supabase
+          .from('friendships')
+          .delete()
+          .or(`and(user_id.eq.${params.blocker_id},friend_id.eq.${params.blocked_id}),and(user_id.eq.${params.blocked_id},friend_id.eq.${params.blocker_id})`),
+        supabase
+          .from('friend_requests')
+          .update({ status: 'rejected', updated_at: new Date().toISOString() })
+          .eq('status', 'pending')
+          .or(`and(sender_id.eq.${params.blocker_id},receiver_id.eq.${params.blocked_id}),and(sender_id.eq.${params.blocked_id},receiver_id.eq.${params.blocker_id})`),
+        supabase
+          .from('reports')
+          .insert({
+            reporter_id: params.blocker_id,
+            reported_user_id: params.blocked_id,
+            reported_message_id: null,
+            type: 'user',
+            reason_id: null,
+            description: '[Auto] User was blocked. Please review within 24 hours.',
+          }),
+      ]);
+
       return data as unknown as Block;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['blocks'] });
       queryClient.invalidateQueries({ queryKey: ['friends'] });
+      queryClient.invalidateQueries({ queryKey: ['friend_requests'] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
     },
   });
 }
