@@ -1,4 +1,4 @@
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation, useMatch } from 'react-router-dom';
 import { MessageCircle, Users, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
@@ -38,7 +38,6 @@ export function DesktopLayout() {
   const { data: conversations } = useConversations(user?.id);
   const totalUnread = (conversations ?? []).reduce((sum, c) => sum + (c.unread_count ?? 0), 0);
 
-  // Determine which sidebar tab is active based on current route
   const activeTab = (() => {
     const p = location.pathname;
     if (p.startsWith('/chat') || p === '/conversations') return 'conversations';
@@ -47,7 +46,6 @@ export function DesktopLayout() {
     return 'conversations';
   })();
 
-  // Is this a detail page that should show in the right panel?
   const isListRoute = ['/conversations', '/contacts', '/settings'].includes(location.pathname);
 
   const navLabels: Record<string, string> = {
@@ -58,14 +56,12 @@ export function DesktopLayout() {
 
   return (
     <div className="flex h-full">
-      {/* Left sidebar */}
+      {/* 左侧边栏 */}
       <div className="flex h-full w-80 shrink-0 flex-col border-r border-border bg-card">
-        {/* Sidebar header */}
         <header className="flex h-12 shrink-0 items-center border-b border-border px-4">
           <h1 className="text-lg font-semibold text-foreground">{t('app.name')}</h1>
         </header>
 
-        {/* Tab navigation */}
         <nav className="flex shrink-0 border-b border-border">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.key;
@@ -98,13 +94,12 @@ export function DesktopLayout() {
           })}
         </nav>
 
-        {/* Sidebar list content */}
         <div className="flex-1 overflow-hidden">
           <SidebarContent activeTab={activeTab} />
         </div>
       </div>
 
-      {/* Right content panel */}
+      {/* 右侧内容面板 */}
       <div className="flex h-full flex-1 flex-col overflow-hidden bg-background">
         {isListRoute ? (
           <div className="flex flex-1 items-center justify-center text-muted-foreground">
