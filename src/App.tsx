@@ -3,11 +3,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { MobileLayout } from '@/components/layout/MobileLayout';
+import { DesktopLayout } from '@/components/layout/DesktopLayout';
 import { FullPageLoading } from '@/components/common/LoadingSpinner';
 import { CallProvider } from '@/features/calling/CallProvider';
 import { useGlobalNotifications } from '@/hooks/useGlobalNotifications';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { lazy, Suspense } from 'react';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 // 懒加载通话组件（包含 100ms SDK ~188KB）
 const LazyCallOverlay = lazy(() => import('@/features/calling/components/LazyCallOverlay'));
@@ -102,11 +104,22 @@ function AuthenticatedApp() {
   );
 }
 
+/** 响应式布局选择器：md+ 使用双栏布局，否则使用手机底部标签栏 */
+function ResponsiveShell() {
+  const isDesktop = useMediaQuery('(min-width: 768px)');
+
+  if (isDesktop) {
+    return <DesktopLayout />;
+  }
+
+  return <Outlet />;
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <div className="mx-auto h-[100dvh] w-full max-w-lg bg-background shadow-xl">
+        <div className="mx-auto h-[100dvh] w-full max-w-lg bg-background shadow-xl md:max-w-none">
           <Routes>
             <Route element={<PublicRoute />}>
               <Route path="/login" element={<PageSuspense><Login /></PageSuspense>} />
@@ -119,30 +132,34 @@ export default function App() {
             <Route element={<ProtectedRoute />}>
               <Route element={<AuthenticatedApp />}>
                 <Route path="/terms-consent" element={<PageSuspense><TermsConsent /></PageSuspense>} />
-                <Route element={<MobileLayout />}>
-                  <Route path="/conversations" element={<PageSuspense><Conversations /></PageSuspense>} />
-                  <Route path="/contacts" element={<PageSuspense><Contacts /></PageSuspense>} />
-                  <Route path="/settings" element={<PageSuspense><Settings /></PageSuspense>} />
-                </Route>
+                <Route element={<ResponsiveShell />}>
+                  {/* 手机端：MobileLayout 包裹列表页 */}
+                  <Route element={<MobileLayout />}>
+                    <Route path="/conversations" element={<PageSuspense><Conversations /></PageSuspense>} />
+                    <Route path="/contacts" element={<PageSuspense><Contacts /></PageSuspense>} />
+                    <Route path="/settings" element={<PageSuspense><Settings /></PageSuspense>} />
+                  </Route>
 
-                <Route path="/chat/:conversationId" element={<PageSuspense><ChatDetail /></PageSuspense>} />
-                <Route path="/chat/new" element={<PageSuspense><ChatDetail /></PageSuspense>} />
-                <Route path="/profile" element={<PageSuspense><Profile /></PageSuspense>} />
-                <Route path="/profile/edit" element={<PageSuspense><ProfileEdit /></PageSuspense>} />
-                <Route path="/profile/:userId" element={<PageSuspense><UserProfile /></PageSuspense>} />
-                <Route path="/search" element={<PageSuspense><Search /></PageSuspense>} />
-                <Route path="/friend-requests" element={<PageSuspense><FriendRequests /></PageSuspense>} />
-                <Route path="/add-friend" element={<PageSuspense><AddFriend /></PageSuspense>} />
-                <Route path="/create-group" element={<PageSuspense><CreateGroup /></PageSuspense>} />
-                <Route path="/group/:conversationId" element={<PageSuspense><GroupDetail /></PageSuspense>} />
-                <Route path="/report/user/:userId" element={<PageSuspense><ReportUser /></PageSuspense>} />
-                <Route path="/report/message/:messageId" element={<PageSuspense><ReportMessage /></PageSuspense>} />
-                <Route path="/settings/privacy" element={<PageSuspense><PrivacySettings /></PageSuspense>} />
-                <Route path="/settings/notifications" element={<PageSuspense><NotificationSettings /></PageSuspense>} />
-                <Route path="/settings/blocked" element={<PageSuspense><BlockedUsers /></PageSuspense>} />
-                <Route path="/settings/delete-account" element={<PageSuspense><DeleteAccount /></PageSuspense>} />
-                <Route path="/settings/help" element={<PageSuspense><Help /></PageSuspense>} />
-                <Route path="/settings/about" element={<PageSuspense><About /></PageSuspense>} />
+                  {/* 详情页：手机端全屏，桌面端显示在右侧面板 */}
+                  <Route path="/chat/:conversationId" element={<PageSuspense><ChatDetail /></PageSuspense>} />
+                  <Route path="/chat/new" element={<PageSuspense><ChatDetail /></PageSuspense>} />
+                  <Route path="/profile" element={<PageSuspense><Profile /></PageSuspense>} />
+                  <Route path="/profile/edit" element={<PageSuspense><ProfileEdit /></PageSuspense>} />
+                  <Route path="/profile/:userId" element={<PageSuspense><UserProfile /></PageSuspense>} />
+                  <Route path="/search" element={<PageSuspense><Search /></PageSuspense>} />
+                  <Route path="/friend-requests" element={<PageSuspense><FriendRequests /></PageSuspense>} />
+                  <Route path="/add-friend" element={<PageSuspense><AddFriend /></PageSuspense>} />
+                  <Route path="/create-group" element={<PageSuspense><CreateGroup /></PageSuspense>} />
+                  <Route path="/group/:conversationId" element={<PageSuspense><GroupDetail /></PageSuspense>} />
+                  <Route path="/report/user/:userId" element={<PageSuspense><ReportUser /></PageSuspense>} />
+                  <Route path="/report/message/:messageId" element={<PageSuspense><ReportMessage /></PageSuspense>} />
+                  <Route path="/settings/privacy" element={<PageSuspense><PrivacySettings /></PageSuspense>} />
+                  <Route path="/settings/notifications" element={<PageSuspense><NotificationSettings /></PageSuspense>} />
+                  <Route path="/settings/blocked" element={<PageSuspense><BlockedUsers /></PageSuspense>} />
+                  <Route path="/settings/delete-account" element={<PageSuspense><DeleteAccount /></PageSuspense>} />
+                  <Route path="/settings/help" element={<PageSuspense><Help /></PageSuspense>} />
+                  <Route path="/settings/about" element={<PageSuspense><About /></PageSuspense>} />
+                </Route>
               </Route>
             </Route>
 
