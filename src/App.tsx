@@ -1,16 +1,16 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { HMSRoomProvider } from '@100mslive/react-sdk';
 import { Toaster } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { FullPageLoading } from '@/components/common/LoadingSpinner';
 import { CallProvider } from '@/features/calling/CallProvider';
-import { IncomingCallModal } from '@/features/calling/components/IncomingCallModal';
-import { ActiveCallScreen } from '@/features/calling/components/ActiveCallScreen';
 import { useGlobalNotifications } from '@/hooks/useGlobalNotifications';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { lazy, Suspense } from 'react';
+
+// 懒加载通话组件（包含 100ms SDK ~188KB）
+const LazyCallOverlay = lazy(() => import('@/features/calling/components/LazyCallOverlay'));
 
 const Login = lazy(() => import('@/pages/Login'));
 const Register = lazy(() => import('@/pages/Register'));
@@ -43,6 +43,7 @@ const queryClient = new QueryClient({
       retry: 1,
       staleTime: 1000 * 60 * 5,
       refetchOnWindowFocus: false,
+      gcTime: 1000 * 60 * 10,
     },
   },
 });
@@ -73,14 +74,14 @@ function GlobalNotificationListener() {
 
 function AuthenticatedApp() {
   return (
-    <HMSRoomProvider>
-      <CallProvider>
-        <Outlet />
-        <IncomingCallModal />
-        <ActiveCallScreen />
-        <GlobalNotificationListener />
-      </CallProvider>
-    </HMSRoomProvider>
+    <CallProvider>
+      <Outlet />
+      {/* 100ms SDK 仅在通话活跃时加载 */}
+      <Suspense fallback={null}>
+        <LazyCallOverlay />
+      </Suspense>
+      <GlobalNotificationListener />
+    </CallProvider>
   );
 }
 
