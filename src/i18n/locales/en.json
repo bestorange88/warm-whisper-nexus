@@ -122,7 +122,8 @@
     "searchMessagesPlaceholder": "Search chat history...",
     "noSearchResults": "No messages found",
     "mentionAll": "Everyone",
-    "blockedBySafetyFilter": "Message not sent: possible objectionable content detected. Please revise and try again."
+    "blockedBySafetyFilter": "Message not sent: possible objectionable content detected. Please revise and try again.",
+    "selectConversation": "Select a conversation to start chatting"
   },
   "contacts": {
     "friendRequests": "Friend Requests",

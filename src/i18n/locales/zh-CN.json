@@ -122,7 +122,8 @@
     "searchMessagesPlaceholder": "搜索聊天记录...",
     "noSearchResults": "未找到相关消息",
     "mentionAll": "所有人",
-    "blockedBySafetyFilter": "消息未发送：检测到可能的违规内容，请修改后再试"
+    "blockedBySafetyFilter": "消息未发送：检测到可能的违规内容，请修改后再试",
+    "selectConversation": "选择一个会话开始聊天"
   },
   "contacts": {
     "friendRequests": "好友请求",
