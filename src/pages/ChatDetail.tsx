@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical, X, FileText, Download, Loader2, Check, CheckCheck, Copy, Trash2, Undo2, Reply, Pencil, Forward, Search as SearchIcon, Lock, Flag } from 'lucide-react';
+import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical, X, FileText, Download, Loader2, Check, CheckCheck, Copy, Trash2, Undo2, Reply, Pencil, Forward, Search as SearchIcon, Lock, Flag, Smile } from 'lucide-react';
 import { VoiceRecorder } from '@/components/chat/VoiceRecorder';
 import { VoicePlayer } from '@/components/chat/VoicePlayer';
 import { useAuth } from '@/hooks/useAuth';
