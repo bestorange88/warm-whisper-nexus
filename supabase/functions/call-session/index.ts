@@ -8,6 +8,38 @@ const corsHeaders = {
 const HMS_ACCESS_KEY = Deno.env.get('HMS_ACCESS_KEY')!;
 const HMS_APP_SECRET = Deno.env.get('HMS_APP_SECRET')!;
 
+// 双语通话消息模板
+const callMessages: Record<string, Record<string, (label: string, duration?: string) => string>> = {
+  'zh-CN': {
+    voiceCall: () => '语音通话',
+    videoCall: () => '视频通话',
+    completed: (label, duration) => `[${label}] 通话时长 ${duration}`,
+    completedNoDuration: (label) => `[${label}] 通话已结束`,
+    rejected: (label) => `[${label}] 已拒绝`,
+    cancelled: (label) => `[${label}] 已取消`,
+    missed: (label) => `[${label}] 未接听`,
+    failed: (label) => `[${label}] 通话失败`,
+    ended: (label) => `[${label}] 通话已结束`,
+  },
+  en: {
+    voiceCall: () => 'Voice Call',
+    videoCall: () => 'Video Call',
+    completed: (label, duration) => `[${label}] Duration ${duration}`,
+    completedNoDuration: (label) => `[${label}] Call ended`,
+    rejected: (label) => `[${label}] Declined`,
+    cancelled: (label) => `[${label}] Cancelled`,
+    missed: (label) => `[${label}] No answer`,
+    failed: (label) => `[${label}] Call failed`,
+    ended: (label) => `[${label}] Call ended`,
+  },
+};
+
+function getMessages(lang: string | null) {
+  if (lang && lang.startsWith('zh')) return callMessages['zh-CN'];
+  if (lang && callMessages[lang]) return callMessages[lang];
+  return callMessages['zh-CN']; // 默认中文
+}
+
 function base64url(input: Uint8Array): string {
   const str = btoa(String.fromCharCode(...input));
   return str.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -99,7 +131,6 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    // Create anon client to verify user token
     const supabaseAnon = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!);
     const token = authHeader.replace('Bearer ', '');
     const { data: { user: authUser }, error: authError } = await supabaseAnon.auth.getUser(token);
@@ -110,7 +141,6 @@ Deno.serve(async (req) => {
     }
     const userId = authUser.id;
 
-    // Service role client for DB operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const url = new URL(req.url);
@@ -139,7 +169,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Verify caller is member of conversation
       const { data: membership } = await supabase
         .from('conversation_members')
         .select('id')
@@ -153,7 +182,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Verify callee is member of conversation
       const { data: calleeMembership } = await supabase
         .from('conversation_members')
         .select('id')
@@ -167,7 +195,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Check no active call in this conversation
       const { data: activeCalls } = await supabase
         .from('call_sessions')
         .select('id')
@@ -181,7 +208,6 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Create call session
       const { data: callSession, error: insertError } = await supabase
         .from('call_sessions')
         .insert({
@@ -199,18 +225,15 @@ Deno.serve(async (req) => {
         throw new Error(`Failed to create call session: ${insertError.message}`);
       }
 
-      // Create 100ms room
       const roomName = `call_${conversation_id}_${callSession.id}`.substring(0, 100);
       const mgmtToken = await generateManagementToken();
       const hmsRoomId = await createHmsRoom(roomName, mgmtToken);
 
-      // Update call session with room id
       await supabase
         .from('call_sessions')
         .update({ hms_room_id: hmsRoomId })
         .eq('id', callSession.id);
 
-      // Generate auth token for caller
       const callerToken = await generateAuthToken(hmsRoomId, userId, 'host');
 
       return new Response(JSON.stringify({
@@ -331,22 +354,33 @@ Deno.serve(async (req) => {
         })
         .eq('id', call_session_id);
 
-      // Insert system message into chat
-      const callTypeLabel = callSession.call_type === 'audio' ? '语音通话' : '视频通话';
-      let messageContent: string;
+      // 查询主叫方语言偏好，用于生成对应语言的系统消息
+      const { data: callerProfile } = await supabase
+        .from('profiles')
+        .select('language')
+        .eq('id', callSession.caller_id)
+        .single();
 
+      const msgs = getMessages(callerProfile?.language || null);
+      const callTypeLabel = callSession.call_type === 'audio'
+        ? msgs.voiceCall('')
+        : msgs.videoCall('');
+
+      let messageContent: string;
       if (endReason === 'completed' && durationSeconds > 0) {
         const mins = Math.floor(durationSeconds / 60).toString().padStart(2, '0');
         const secs = (durationSeconds % 60).toString().padStart(2, '0');
-        messageContent = `[${callTypeLabel}] 通话时长 ${mins}:${secs}`;
+        messageContent = msgs.completed(callTypeLabel, `${mins}:${secs}`);
       } else if (endReason === 'rejected') {
-        messageContent = `[${callTypeLabel}] 已拒绝`;
+        messageContent = msgs.rejected(callTypeLabel);
       } else if (endReason === 'cancelled') {
-        messageContent = `[${callTypeLabel}] 已取消`;
+        messageContent = msgs.cancelled(callTypeLabel);
       } else if (endReason === 'missed') {
-        messageContent = `[${callTypeLabel}] 未接听`;
+        messageContent = msgs.missed(callTypeLabel);
+      } else if (endReason === 'failed' || endReason === 'permission_denied') {
+        messageContent = msgs.failed(callTypeLabel);
       } else {
-        messageContent = `[${callTypeLabel}] 通话已结束`;
+        messageContent = msgs.ended(callTypeLabel);
       }
 
       await supabase.from('messages').insert({

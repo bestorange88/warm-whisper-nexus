@@ -8,7 +8,7 @@ import { useMessages, useSendMessage, useConversation, useRecallMessage, useDele
 import { useProfile } from '@/hooks/useProfile';
 import { useCallContext } from '@/features/calling/CallProvider';
 import { CallMessageRenderer } from '@/features/calling/components/CallMessageRenderer';
-import { isCallMessage } from '@/features/calling/callMessageBuilder';
+import { isCallMessage } from '@/features/calling/components/CallMessageRenderer';
 import { UserAvatar } from '@/components/avatar/UserAvatar';
 import { FullPageLoading } from '@/components/common/LoadingSpinner';
 import { Button } from '@/components/ui/button';

@@ -1,5 +1,9 @@
 import { Phone, Video } from 'lucide-react';
-import { isCallMessage } from '../callMessageBuilder';
+
+export function isCallMessage(content: string | null): boolean {
+  if (!content) return false;
+  return /^\[(语音通话|视频通话|Voice Call|Video Call)\]/.test(content);
+}
 
 interface CallMessageRendererProps {
   content: string;
