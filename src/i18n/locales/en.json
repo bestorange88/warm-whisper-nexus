@@ -212,7 +212,12 @@
     "bioPlaceholder": "Write something about yourself...",
     "phonePlaceholder": "Enter phone number",
     "usernameLabel": "Username",
-    "usernameReadonly": "Username cannot be changed"
+    "usernameReadonly": "Username cannot be changed",
+    "tapToChangeAvatar": "Tap avatar to change photo",
+    "avatarTooLarge": "Image must be under 5MB",
+    "avatarInvalidType": "Please select an image file",
+    "avatarUploaded": "Avatar updated",
+    "avatarUploadFailed": "Avatar upload failed, please try again"
   },
   "settings": {
     "title": "Settings",
