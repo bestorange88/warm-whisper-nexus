@@ -194,6 +194,7 @@ export default function ChatDetail() {
   const [searchQuery, setSearchQuery] = useState('');
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -707,6 +708,9 @@ export default function ChatDetail() {
           onEdit={handleEdit}
           onForward={handleForward}
           onReport={handleReportMessage}
+          onReact={(emoji) => {
+            toast(`${emoji}`, { duration: 1500 });
+          }}
         />
       )}
 
@@ -771,8 +775,40 @@ export default function ChatDetail() {
         </div>
       )}
 
+      {/* Emoji picker panel */}
+      {showEmojiPicker && (
+        <div className="border-t border-stone-100 bg-white px-2 py-3">
+          <div className="grid grid-cols-8 gap-1 max-h-48 overflow-y-auto">
+            {['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','😊','😇','🥰','😍','🤩','😘','😗',
+              '😚','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶',
+              '😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🥵',
+              '🥶','🥴','😵','🤯','🤠','🥳','🥸','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲',
+              '😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫',
+              '🥱','😤','😡','😠','🤬','😈','👿','💀','☠️','💩','🤡','👹','👺','👻','👽','👾',
+              '🤖','😺','😸','😹','😻','😼','😽','🙀','😿','😾','👋','🤚','🖐️','✋','🖖','👌',
+              '🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊',
+              '👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','💪','🦾','❤️','🧡','💛','💚','💙',
+              '💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','🔥','⭐',
+              '🌟','✨','💫','🎉','🎊','🎈','🎁','🏆','🥇','🥈','🥉','⚽','🏀','🏈','⚾','🎾',
+              '☀️','🌈','☁️','🌙','🌍','🌊','🍎','🍕','🍔','🍟','🍩','🍦','☕','🍺','🎵','🎶'
+            ].map((emoji) => (
+              <button
+                key={emoji}
+                onClick={() => {
+                  setInput(prev => prev + emoji);
+                  inputRef.current?.focus();
+                }}
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-xl hover:bg-stone-100 active:bg-stone-200 transition-colors"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="safe-area-bottom shrink-0 border-t border-stone-100 bg-white px-3 py-2">
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-1.5">
           <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageSelect} />
           <input ref={fileInputRef} type="file" accept="*/*" className="hidden" onChange={handleFileSelect} />
           <button onClick={() => imageInputRef.current?.click()} disabled={uploading} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 disabled:opacity-50">
@@ -781,12 +817,16 @@ export default function ChatDetail() {
           <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-stone-400 hover:bg-stone-100 disabled:opacity-50">
             <Paperclip className="h-5 w-5" />
           </button>
+          <button onClick={() => setShowEmojiPicker(prev => !prev)} className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-stone-100", showEmojiPicker ? "text-brand" : "text-stone-400")}>
+            <Smile className="h-5 w-5" />
+          </button>
           <div className="flex-1">
             <textarea
               ref={inputRef}
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
+              onFocus={() => setShowEmojiPicker(false)}
               placeholder={editingMsg ? t('chat.editMessage') : t('chat.inputPlaceholder')}
               rows={1}
               className="w-full resize-none rounded-2xl border-0 bg-stone-100 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
