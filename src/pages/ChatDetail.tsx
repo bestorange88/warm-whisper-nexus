@@ -98,7 +98,7 @@ function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete,
           top: safeY,
           left: Math.min(Math.max(position.x, 100), window.innerWidth - 100),
           transform: showBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
-          maxHeight: 'calc(100vh - 20px)',
+          maxHeight: 'calc(100dvh - 20px)',
           overflowY: 'auto',
         }}
         onClick={(e) => e.stopPropagation()}
