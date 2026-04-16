@@ -62,7 +62,7 @@ export default function Register() {
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-stone-700">{t('auth.password')}</label>
-            <Input type="password" placeholder={t('auth.passwordTooShort')} value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <Input type="password" placeholder={t('auth.passwordPlaceholder')} value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-stone-700">{t('auth.confirmPassword')}</label>

@@ -5,7 +5,7 @@ import { VoiceRecorder } from '@/components/chat/VoiceRecorder';
 import { VoicePlayer } from '@/components/chat/VoicePlayer';
 import { useAuth } from '@/hooks/useAuth';
 import { useMessages, useSendMessage, useConversation, useRecallMessage, useDeleteMessage, useReadReceipt } from '@/hooks/useConversations';
-import { useProfile } from '@/hooks/useProfile';
+import { usePublicProfile } from '@/hooks/useProfile';
 import { useCallContext } from '@/features/calling/CallProvider';
 import { CallMessageRenderer } from '@/features/calling/components/CallMessageRenderer';
 import { isCallMessage } from '@/features/calling/components/CallMessageRenderer';
@@ -266,7 +266,7 @@ export default function ChatDetail() {
       });
   }, [conversationId, user, conversation?.type]);
 
-  const { data: otherProfile } = useProfile(conversation?.type === 'direct' ? otherUserId ?? undefined : undefined);
+  const { data: otherProfile } = usePublicProfile(conversation?.type === 'direct' ? otherUserId ?? undefined : undefined);
 
   const isDirectChat = conversation?.type === 'direct';
   const { encrypt, decrypt, canEncrypt } = useE2EEChat(user?.id, isDirectChat ? otherUserId : null);
