@@ -32,7 +32,7 @@ export function MobileLayout() {
           <h1 className="text-lg font-semibold text-stone-900">{t('app.name')}</h1>
         </header>
       )}
-      <main className="flex-1 overflow-hidden">
+      <main className="min-h-0 flex-1 overflow-y-auto">
         <Outlet />
       </main>
       {isMainRoute && (
