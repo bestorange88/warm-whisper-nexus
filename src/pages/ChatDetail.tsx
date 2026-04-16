@@ -266,7 +266,7 @@ export default function ChatDetail() {
       });
   }, [conversationId, user, conversation?.type]);
 
-  const { data: otherProfile } = useProfile(conversation?.type === 'direct' ? otherUserId ?? undefined : undefined);
+  const { data: otherProfile } = usePublicProfile(conversation?.type === 'direct' ? otherUserId ?? undefined : undefined);
 
   const isDirectChat = conversation?.type === 'direct';
   const { encrypt, decrypt, canEncrypt } = useE2EEChat(user?.id, isDirectChat ? otherUserId : null);
