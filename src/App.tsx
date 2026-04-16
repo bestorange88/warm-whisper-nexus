@@ -112,7 +112,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <div className="mx-auto h-[100dvh] w-full max-w-lg bg-background shadow-xl md:max-w-none">
+        <div className="mx-auto h-[100dvh] w-full bg-background md:max-w-none">
           <Routes>
             <Route element={<PublicRoute />}>
               <Route path="/login" element={<PS><Login /></PS>} />
