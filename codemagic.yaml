@@ -117,6 +117,10 @@ workflows:
         script: |
           # Marketing version 来自 workflow 顶层 vars，保持 iOS / Android 一致
           echo "Setting marketing version: $MARKETING_VERSION"
+          PREVIOUS_MARKETING=$(agvtool what-marketing-version -terse1 | tail -n 1 || true)
+          if [ -n "$PREVIOUS_MARKETING" ]; then
+            echo "Previous marketing version in project: $PREVIOUS_MARKETING"
+          fi
           agvtool new-marketing-version "$MARKETING_VERSION"
 
           # Build number（UTC 时间戳，单调递增，App Store Connect 要求唯一）
@@ -134,6 +138,10 @@ workflows:
           if [ "$ACTUAL_BUILD" != "$BUILD_NUMBER" ]; then
             echo "❌ Build number 写入失败: 预期 '$BUILD_NUMBER'，实际 '$ACTUAL_BUILD'"
             exit 1
+          fi
+          if [ "$ACTUAL_MARKETING" = "$PREVIOUS_MARKETING" ]; then
+            echo "⚠️ Marketing version 未变化：仍为 $ACTUAL_MARKETING"
+            echo "   若上一个已上架版本也是该值，上传到 App Store Connect 会被拒绝。"
           fi
           echo "✅ iOS 版本写入成功: $ACTUAL_MARKETING ($ACTUAL_BUILD)"
         working_directory: ios/App
