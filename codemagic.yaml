@@ -18,6 +18,9 @@ workflows:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
+        VITE_SUPABASE_PROJECT_ID: "ozkbiywqvbfqpjgqvkdq"
+        VITE_SUPABASE_URL: "https://ozkbiywqvbfqpjgqvkdq.supabase.co"
+        VITE_SUPABASE_PUBLISHABLE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96a2JpeXdxdmJmcXBqZ3F2a2RxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzYyMzEsImV4cCI6MjA5MTMxMjIzMX0.a38le1TH5lccW-e7qEkb0XzGSZlf51l-x3gDjS7KlDA"
       node: 22
       xcode: latest
       cocoapods: default
@@ -27,6 +30,12 @@ workflows:
           npm install
       - name: Build web assets
         script: |
+          # 写入 .env 以确保 Vite 构建时能读到 Supabase 配置（避免原生包白屏）
+          cat > .env <<EOF
+          VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
+          VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+          VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+          EOF
           npm run build
       - name: Prepare and sync Capacitor iOS
         script: |
@@ -50,6 +59,11 @@ workflows:
           if [ ! -f "$PLIST_PATH" ]; then
             echo "Info.plist not found at $PLIST_PATH"
             exit 1
+          fi
+
+          # 出口合规：声明应用未使用受限加密（仅用 HTTPS/标准系统加密）
+          if ! /usr/libexec/PlistBuddy -c "Print :ITSAppUsesNonExemptEncryption" "$PLIST_PATH" 2>/dev/null; then
+            /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST_PATH"
           fi
 
           # Camera – video calls
@@ -183,6 +197,9 @@ workflows:
         - android_credentials
       vars:
         BUNDLE_ID: "chat.archime.app"
+        VITE_SUPABASE_PROJECT_ID: "ozkbiywqvbfqpjgqvkdq"
+        VITE_SUPABASE_URL: "https://ozkbiywqvbfqpjgqvkdq.supabase.co"
+        VITE_SUPABASE_PUBLISHABLE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96a2JpeXdxdmJmcXBqZ3F2a2RxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzYyMzEsImV4cCI6MjA5MTMxMjIzMX0.a38le1TH5lccW-e7qEkb0XzGSZlf51l-x3gDjS7KlDA"
       node: 22
       java: 17
     scripts:
@@ -191,6 +208,12 @@ workflows:
           npm install
       - name: Build web assets
         script: |
+          # 写入 .env 以确保 Vite 构建时能读到 Supabase 配置（避免原生包白屏）
+          cat > .env <<EOF
+          VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
+          VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+          VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+          EOF
           npm run build
       - name: Prepare and sync Capacitor Android
         script: |
