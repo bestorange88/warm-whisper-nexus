@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import i18n from '@/i18n';
 import { useFriendRequestNotifications } from '@/hooks/notifications/useFriendRequestNotifications';
+import { notifyForeground } from '@/lib/notifications/feedback';
 
 /**
  * Global listener for new messages across all conversations.
@@ -95,6 +96,15 @@ export function useGlobalNotifications() {
             },
             duration: 4000,
           });
+
+          // 提示音 + 震动 + 浏览器系统通知（页面不可见时）
+          notifyForeground({
+            title: senderName,
+            body: preview,
+            tag: `chat:${msg.conversation_id}`,
+            navigateTo: `/chat/${msg.conversation_id}`,
+            icon: (sender as any)?.avatar_url || '/app-icon.png',
+          });
         }
       )
       .subscribe();
@@ -140,6 +150,12 @@ export function useGlobalNotifications() {
               },
             },
             duration: 5000,
+          });
+
+          notifyForeground({
+            title: t('contacts.groupInviteReceived', { name: conv.name || t('chat.groupChat') }),
+            tag: `group-invite:${member.conversation_id}`,
+            navigateTo: `/chat/${member.conversation_id}`,
           });
         }
       )
