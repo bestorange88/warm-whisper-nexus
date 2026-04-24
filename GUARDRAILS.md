@@ -22,3 +22,10 @@
 - 导入 Supabase 客户端: `import { supabase } from "@/integrations/supabase/client"`
 - 主色使用 CSS 变量而非硬编码
 - 中文为主要界面语言，英文作为备选
+
+## 🛡️ 防御层（2026-04-24 新增，受 FREEZE_DEFENSE.md 锁定）
+1. 任何 AI 会话动手前必须先读取 `.devin/constraints.md` 与 `FREEZE_DEFENSE.md`。
+2. 防御层代码仅允许位于 `src/lib/defense/**` 与 `src/components/defense/**`，不得侵入业务模块。
+3. 业务文件挂载点（`src/main.tsx` / `src/App.tsx`）改动行数 ≤ 5 行，且仅用于挂载防御组件。
+4. 所有防御能力必须通过 `VITE_DEFENSE_*` feature flag 控制，关闭后行为等价回退。
+5. 严禁 AI 自动回滚；如需回滚，须由用户人工执行（参考 FREEZE_DEFENSE.md）。
