@@ -327,6 +327,23 @@ export default function ChatDetail() {
       });
   }, [conversationId, user, conversation?.type]);
 
+  // 拉取当前用户在此会话的成员状态（置顶/免打扰），用于头部菜单显示与切换
+  useEffect(() => {
+    if (!conversationId || !user) return;
+    let cancelled = false;
+    supabase
+      .from('conversation_members')
+      .select('is_pinned, is_muted')
+      .eq('conversation_id', conversationId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        setMembership({ is_pinned: !!data.is_pinned, is_muted: !!data.is_muted });
+      });
+    return () => { cancelled = true; };
+  }, [conversationId, user?.id, headerMenuOpen]);
+
   const { data: otherProfile } = usePublicProfile(conversation?.type === 'direct' ? otherUserId ?? undefined : undefined);
 
   const isDirectChat = conversation?.type === 'direct';
