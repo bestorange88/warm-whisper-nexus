@@ -48,6 +48,57 @@ workflows:
             exit 1
           fi
           echo "✅ MARKETING_VERSION 校验通过: $MARKETING_VERSION"
+      - name: Defense pre-build guard (iOS)
+        script: |
+          # 防御层构建门禁（最小侵入，失败即阻断发布）。
+          # 若需临时关闭，请在 Codemagic 环境变量中设置 DEFENSE_BUILD_GUARD=off。
+          if [ "$DEFENSE_BUILD_GUARD" = "off" ]; then
+            echo "⚠️ DEFENSE_BUILD_GUARD=off，跳过构建门禁（仅限调试）"
+            exit 0
+          fi
+
+          echo "🔒 [1/4] 检查源码是否泄露明显敏感字符串..."
+          # 仅扫描 src/ 与 supabase/functions/，排除已知占位/公钥
+          LEAK=$(grep -RInE '(SUPABASE_SERVICE_ROLE_KEY|sk_live_[A-Za-z0-9]+|AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC )?PRIVATE KEY-----)' \
+            src supabase/functions 2>/dev/null || true)
+          if [ -n "$LEAK" ]; then
+            echo "❌ 检测到疑似敏感信息硬编码："
+            echo "$LEAK"
+            exit 1
+          fi
+
+          echo "🔒 [2/4] 校验 .env 未被篡改（不得包含 service role key）..."
+          if [ -f .env ] && grep -q 'SERVICE_ROLE' .env; then
+            echo "❌ .env 出现 SERVICE_ROLE 关键字，禁止打包"
+            exit 1
+          fi
+
+          echo "🔒 [3/4] 确认防御层文件存在（防止误删）..."
+          for f in \
+            src/lib/defense/index.ts \
+            src/lib/defense/flags.ts \
+            src/lib/defense/sanitize.ts \
+            src/components/defense/DefenseRoot.tsx \
+            FREEZE_DEFENSE.md \
+            .devin/constraints.md; do
+            if [ ! -f "$f" ]; then
+              echo "❌ 防御层文件缺失：$f"
+              echo "   该文件已被 FREEZE_DEFENSE.md 冻结，禁止删除。"
+              exit 1
+            fi
+          done
+
+          echo "🔒 [4/4] 检查 lockfile 与 package.json 一致性..."
+          if [ -f bun.lock ] || [ -f bun.lockb ]; then
+            echo "✅ 发现 bun lockfile"
+          elif [ -f package-lock.json ]; then
+            echo "✅ 发现 npm lockfile"
+          else
+            echo "❌ 未找到任何 lockfile，构建不可复现"
+            exit 1
+          fi
+
+          echo "✅ 防御层构建门禁通过"
       - name: Install dependencies
         script: |
           npm install
