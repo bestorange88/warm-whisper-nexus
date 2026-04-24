@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical, X, FileText, Download, Loader2, Check, CheckCheck, Copy, Trash2, Undo2, Reply, Pencil, Forward, Search as SearchIcon, Lock, Flag, Smile } from 'lucide-react';
 import { VoiceRecorder } from '@/components/chat/VoiceRecorder';
@@ -52,13 +52,34 @@ function useMessagePreviewText() {
 
 const QUICK_EMOJIS = ['👍', '😄', '❤️', '🥰', '🔥', '👎', '👏'];
 
+/** localStorage key for messages a user has chosen to "delete for me" (hidden locally only). */
+function hiddenMessagesKey(userId: string) {
+  return `chat:hiddenMessages:${userId}`;
+}
+function readHiddenMessages(userId: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(hiddenMessagesKey(userId));
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch { return new Set(); }
+}
+function writeHiddenMessages(userId: string, ids: Set<string>) {
+  try {
+    // 限制最多保留最近 5000 条，避免 localStorage 无限膨胀
+    const arr = Array.from(ids).slice(-5000);
+    localStorage.setItem(hiddenMessagesKey(userId), JSON.stringify(arr));
+  } catch { /* 忽略写入失败 */ }
+}
+
 interface MessageMenuProps {
   msg: Message;
   isOwn: boolean;
   position: { x: number; y: number };
   onClose: () => void;
   onRecall: () => void;
-  onDelete: () => void;
+  onDeleteForMe: () => void;
+  onDeleteForEveryone: () => void;
   onCopy: () => void;
   onReply: () => void;
   onEdit: () => void;
@@ -67,11 +88,12 @@ interface MessageMenuProps {
   onReact: (emoji: string) => void;
 }
 
-function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete, onCopy, onReply, onEdit, onForward, onReport, onReact }: MessageMenuProps) {
+function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDeleteForMe, onDeleteForEveryone, onCopy, onReply, onEdit, onForward, onReport, onReact }: MessageMenuProps) {
   const { t } = useTranslation();
   const canRecall = isOwn && Date.now() - new Date(msg.created_at).getTime() < RECALL_WINDOW_MS;
   const canEdit = isOwn && msg.type === 'text' && msg.content;
   const menuRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     const handler = () => onClose();
@@ -83,10 +105,40 @@ function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete,
     };
   }, [onClose]);
 
-  // Keep menu within viewport - flip to below if near top
-  const menuHeight = 320; // approximate max menu height
-  const showBelow = position.y < menuHeight + 20;
-  const safeY = showBelow ? Math.max(position.y + 10, 10) : Math.max(position.y, 10);
+  // 测量真实尺寸后再定位，保证菜单始终完整显示在安全区内（修复对方消息溢出右侧的问题）
+  useLayoutEffect(() => {
+    const el = menuRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const cs = getComputedStyle(document.documentElement);
+    const safeTop = parseFloat(cs.getPropertyValue('--safe-top')) || 0;
+    const safeBottom = parseFloat(cs.getPropertyValue('--safe-bottom')) || 0;
+    const safeLeft = parseFloat(cs.getPropertyValue('--safe-left')) || 0;
+    const safeRight = parseFloat(cs.getPropertyValue('--safe-right')) || 0;
+    const margin = 8;
+
+    // 水平：以触摸点居中，再夹紧到 [safeLeft+margin, vw-safeRight-margin]
+    let left = position.x - rect.width / 2;
+    left = Math.max(safeLeft + margin, Math.min(left, vw - safeRight - margin - rect.width));
+
+    // 垂直：优先放在触摸点上方，空间不足则放下方，再夹紧到安全区内
+    const topAbove = position.y - rect.height - margin;
+    const topBelow = position.y + margin;
+    const minTop = safeTop + margin;
+    const maxTop = vh - safeBottom - margin - rect.height;
+    let top: number;
+    if (topAbove >= minTop) {
+      top = topAbove;
+    } else if (topBelow <= maxTop) {
+      top = topBelow;
+    } else {
+      // 屏幕高度都不够，居中显示
+      top = Math.max(minTop, Math.min((vh - rect.height) / 2, maxTop));
+    }
+    setCoords({ top, left });
+  }, [position.x, position.y]);
 
   return (
     <>
@@ -95,10 +147,11 @@ function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete,
         ref={menuRef}
         className="fixed z-50 animate-in fade-in zoom-in-95"
         style={{
-          top: safeY,
-          left: Math.min(Math.max(position.x, 100), window.innerWidth - 100),
-          transform: showBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
-          maxHeight: 'calc(100dvh - 20px)',
+          top: coords?.top ?? -9999,
+          left: coords?.left ?? -9999,
+          // 测量阶段先隐藏，避免闪烁到错误位置
+          visibility: coords ? 'visible' : 'hidden',
+          maxHeight: `calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px)`,
           overflowY: 'auto',
         }}
         onClick={(e) => e.stopPropagation()}
@@ -147,13 +200,15 @@ function MessageContextMenu({ msg, isOwn, position, onClose, onRecall, onDelete,
               </button>
             </>
           )}
+          {/* 删除区：仅为我删除（所有消息） + 为所有人删除（仅自己消息） */}
+          <div className="mx-3 my-1 border-t border-border" />
+          <button onClick={onDeleteForMe} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-muted">
+            <Trash2 className="h-4 w-4 text-muted-foreground" /> {t('chat.deleteForMe')}
+          </button>
           {isOwn && (
-            <>
-              <div className="mx-3 my-1 border-t border-border" />
-              <button onClick={onDelete} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-destructive hover:bg-muted">
-                <Trash2 className="h-4 w-4" /> {t('chat.deleteMessage')}
-              </button>
-            </>
+            <button onClick={onDeleteForEveryone} className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-destructive hover:bg-muted">
+              <Trash2 className="h-4 w-4" /> {t('chat.deleteForEveryone')}
+            </button>
           )}
         </div>
       </div>
@@ -508,10 +563,33 @@ export default function ChatDetail() {
     } catch (err: any) { toast.error(err.message || t('chat.recallFailed')); }
   };
 
-  const handleDelete = async () => {
+  // 仅为我删除：本地隐藏，不影响对方（参考 Telegram 的 "Delete for me"）
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() =>
+    user ? readHiddenMessages(user.id) : new Set()
+  );
+  useEffect(() => {
+    if (user) setHiddenIds(readHiddenMessages(user.id));
+  }, [user?.id]);
+
+  const handleDeleteForMe = () => {
+    if (!contextMenu || !user) return;
+    const msg = contextMenu.msg;
+    setContextMenu(null);
+    if (!window.confirm(t('chat.deleteConfirm'))) return;
+    setHiddenIds(prev => {
+      const next = new Set(prev);
+      next.add(msg.id);
+      writeHiddenMessages(user.id, next);
+      return next;
+    });
+    toast.success(t('chat.deleteSuccess'));
+  };
+
+  const handleDeleteForEveryone = async () => {
     if (!contextMenu || !user || !conversationId) return;
     const msg = contextMenu.msg;
     setContextMenu(null);
+    if (!window.confirm(t('chat.deleteForEveryoneConfirm'))) return;
     try {
       await deleteMessage.mutateAsync({ messageId: msg.id, conversationId, senderId: user.id });
       toast.success(t('chat.deleteSuccess'));
@@ -580,10 +658,12 @@ export default function ChatDetail() {
 
   const filteredMessages = useMemo(() => {
     if (!messages) return [];
-    if (!searchQuery.trim()) return messages;
+    // 先过滤掉本地"仅为我删除"的消息
+    const visible = hiddenIds.size > 0 ? messages.filter(m => !hiddenIds.has(m.id)) : messages;
+    if (!searchQuery.trim()) return visible;
     const q = searchQuery.toLowerCase();
-    return messages.filter(m => m.content?.toLowerCase().includes(q));
-  }, [messages, searchQuery]);
+    return visible.filter(m => m.content?.toLowerCase().includes(q));
+  }, [messages, searchQuery, hiddenIds]);
 
   if (isLoading) return <FullPageLoading />;
 
@@ -743,7 +823,8 @@ export default function ChatDetail() {
           position={{ x: contextMenu.x, y: contextMenu.y }}
           onClose={() => setContextMenu(null)}
           onRecall={handleRecall}
-          onDelete={handleDelete}
+          onDeleteForMe={handleDeleteForMe}
+          onDeleteForEveryone={handleDeleteForEveryone}
           onCopy={handleCopy}
           onReply={handleReply}
           onEdit={handleEdit}
