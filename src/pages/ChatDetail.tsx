@@ -765,12 +765,75 @@ export default function ChatDetail() {
             <button onClick={() => handleCall('video')} className="p-1.5 text-stone-500 hover:text-brand"><Video className="h-5 w-5" /></button>
           </>
         )}
-        {!isDirectChat && (
-          <button onClick={() => navigate(`/group/${conversationId}`)} className="p-1.5 text-stone-500 hover:text-stone-700"><MoreVertical className="h-5 w-5" /></button>
-        )}
-        {isDirectChat && (
-          <button onClick={() => navigate(`/profile/${otherUserId}`)} className="p-1.5 text-stone-500 hover:text-stone-700"><MoreVertical className="h-5 w-5" /></button>
-        )}
+        <div className="relative">
+          <button
+            onClick={() => setHeaderMenuOpen((v) => !v)}
+            className="p-1.5 text-stone-500 hover:text-stone-700"
+            aria-label={t('common.menu', { defaultValue: 'Menu' })}
+          >
+            <MoreVertical className="h-5 w-5" />
+          </button>
+          {headerMenuOpen && (
+            <>
+              {/* 透明遮罩，点击空白关闭 */}
+              <div className="fixed inset-0 z-40" onClick={() => setHeaderMenuOpen(false)} />
+              {/* 下拉菜单：参考 Telegram，从三点按钮下方弹出，靠右对齐 */}
+              <div
+                className="absolute right-0 top-full z-50 mt-1.5 w-56 overflow-hidden rounded-xl border border-border bg-background shadow-xl animate-in fade-in slide-in-from-top-2"
+              >
+                <button
+                  onClick={handleViewProfileFromHeader}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"
+                >
+                  <UserIcon className="h-4 w-4 text-muted-foreground" />
+                  {isDirectChat ? t('chat.viewProfile') : t('chat.viewGroupInfo')}
+                </button>
+                <button
+                  onClick={handleSearchFromHeader}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"
+                >
+                  <SearchIcon className="h-4 w-4 text-muted-foreground" />
+                  {t('chat.searchInChat')}
+                </button>
+                <button
+                  onClick={handleToggleMuteFromHeader}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"
+                >
+                  {membership?.is_muted ? (
+                    <><Bell className="h-4 w-4 text-muted-foreground" /> {t('chat.unmuteChat')}</>
+                  ) : (
+                    <><BellOff className="h-4 w-4 text-muted-foreground" /> {t('chat.muteChat')}</>
+                  )}
+                </button>
+                <button
+                  onClick={handleTogglePinFromHeader}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"
+                >
+                  {membership?.is_pinned ? (
+                    <><PinOff className="h-4 w-4 text-muted-foreground" /> {t('chat.unpinConversation')}</>
+                  ) : (
+                    <><Pin className="h-4 w-4 text-muted-foreground" /> {t('chat.pinConversation')}</>
+                  )}
+                </button>
+                <div className="my-1 border-t border-border" />
+                <button
+                  onClick={handleClearChatFromHeader}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"
+                >
+                  <Eraser className="h-4 w-4 text-muted-foreground" />
+                  {t('chat.clearChat')}
+                </button>
+                <button
+                  onClick={handleDeleteChatFromHeader}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-destructive hover:bg-muted"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {t('chat.deleteConversation')}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </header>
 
       {searchOpen && (
