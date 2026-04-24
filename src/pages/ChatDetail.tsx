@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical, X, FileText, Download, Loader2, Check, CheckCheck, Copy, Trash2, Undo2, Reply, Pencil, Forward, Search as SearchIcon, Lock, Flag, Smile } from 'lucide-react';
+import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical, X, FileText, Download, Loader2, Check, CheckCheck, Copy, Trash2, Undo2, Reply, Pencil, Forward, Search as SearchIcon, Lock, Flag, Smile, User as UserIcon, Bell, BellOff, Pin, PinOff, Eraser } from 'lucide-react';
 import { VoiceRecorder } from '@/components/chat/VoiceRecorder';
 import { VoicePlayer } from '@/components/chat/VoicePlayer';
 import { useAuth } from '@/hooks/useAuth';
-import { useMessages, useSendMessage, useConversation, useRecallMessage, useDeleteMessage, useReadReceipt } from '@/hooks/useConversations';
+import { useMessages, useSendMessage, useConversation, useRecallMessage, useDeleteMessage, useReadReceipt, useTogglePin, useToggleMute, useLeaveConversation } from '@/hooks/useConversations';
 import { usePublicProfile } from '@/hooks/useProfile';
 import { useCallContext } from '@/features/calling/CallProvider';
 import { CallMessageRenderer } from '@/features/calling/components/CallMessageRenderer';
@@ -277,6 +277,9 @@ export default function ChatDetail() {
   const sendMessage = useSendMessage();
   const recallMessage = useRecallMessage();
   const deleteMessage = useDeleteMessage();
+  const togglePin = useTogglePin();
+  const toggleMute = useToggleMute();
+  const leaveConversation = useLeaveConversation();
   const { initiateCall } = useCallContext();
   const [input, setInput] = useState('');
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
@@ -291,6 +294,9 @@ export default function ChatDetail() {
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  // 当前用户在此会话中的成员状态（is_pinned / is_muted），用于头部菜单
+  const [membership, setMembership] = useState<{ is_pinned: boolean; is_muted: boolean } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -320,6 +326,23 @@ export default function ChatDetail() {
         if (other) setOtherUserId(other.user_id);
       });
   }, [conversationId, user, conversation?.type]);
+
+  // 拉取当前用户在此会话的成员状态（置顶/免打扰），用于头部菜单显示与切换
+  useEffect(() => {
+    if (!conversationId || !user) return;
+    let cancelled = false;
+    supabase
+      .from('conversation_members')
+      .select('is_pinned, is_muted')
+      .eq('conversation_id', conversationId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        setMembership({ is_pinned: !!data.is_pinned, is_muted: !!data.is_muted });
+      });
+    return () => { cancelled = true; };
+  }, [conversationId, user?.id, headerMenuOpen]);
 
   const { data: otherProfile } = usePublicProfile(conversation?.type === 'direct' ? otherUserId ?? undefined : undefined);
 
@@ -632,6 +655,60 @@ export default function ChatDetail() {
     navigate(`/report/message/${messageId}`);
   };
 
+  // ====== 头部下拉菜单（参考 Telegram）======
+  const handleViewProfileFromHeader = () => {
+    setHeaderMenuOpen(false);
+    if (isDirectChat) navigate(`/profile/${otherUserId}`);
+    else navigate(`/group/${conversationId}`);
+  };
+  const handleSearchFromHeader = () => {
+    setHeaderMenuOpen(false);
+    setSearchOpen(true);
+  };
+  const handleToggleMuteFromHeader = async () => {
+    setHeaderMenuOpen(false);
+    if (!user || !conversationId) return;
+    const next = !(membership?.is_muted);
+    try {
+      await toggleMute.mutateAsync({ conversationId, userId: user.id, muted: next });
+      setMembership((m) => ({ is_pinned: m?.is_pinned ?? false, is_muted: next }));
+      toast.success(next ? t('chat.muted') : t('chat.unmuted'));
+    } catch { toast.error(t('chat.operationFailed')); }
+  };
+  const handleTogglePinFromHeader = async () => {
+    setHeaderMenuOpen(false);
+    if (!user || !conversationId) return;
+    const next = !(membership?.is_pinned);
+    try {
+      await togglePin.mutateAsync({ conversationId, userId: user.id, pinned: next });
+      setMembership((m) => ({ is_pinned: next, is_muted: m?.is_muted ?? false }));
+      toast.success(next ? t('chat.pinned') : t('chat.unpinned'));
+    } catch { toast.error(t('chat.operationFailed')); }
+  };
+  const handleClearChatFromHeader = () => {
+    setHeaderMenuOpen(false);
+    if (!user || !messages || messages.length === 0) return;
+    if (!window.confirm(t('chat.clearChatConfirm'))) return;
+    // 清空 = 把当前所有消息加入"仅为我"隐藏列表（与单条删除共用本地存储）
+    setHiddenIds((prev) => {
+      const next = new Set(prev);
+      messages.forEach((m) => next.add(m.id));
+      writeHiddenMessages(user.id, next);
+      return next;
+    });
+    toast.success(t('chat.chatCleared'));
+  };
+  const handleDeleteChatFromHeader = async () => {
+    setHeaderMenuOpen(false);
+    if (!user || !conversationId) return;
+    if (!window.confirm(t('chat.deleteChatConfirm'))) return;
+    try {
+      await leaveConversation.mutateAsync({ conversationId, userId: user.id });
+      toast.success(t('chat.conversationDeleted'));
+      navigate('/conversations');
+    } catch { toast.error(t('chat.deleteFailed2')); }
+  };
+
   const handleForwardTo = async (targetConvId: string) => {
     if (!forwardMsg || !user) return;
     try {
@@ -688,12 +765,75 @@ export default function ChatDetail() {
             <button onClick={() => handleCall('video')} className="p-1.5 text-stone-500 hover:text-brand"><Video className="h-5 w-5" /></button>
           </>
         )}
-        {!isDirectChat && (
-          <button onClick={() => navigate(`/group/${conversationId}`)} className="p-1.5 text-stone-500 hover:text-stone-700"><MoreVertical className="h-5 w-5" /></button>
-        )}
-        {isDirectChat && (
-          <button onClick={() => navigate(`/profile/${otherUserId}`)} className="p-1.5 text-stone-500 hover:text-stone-700"><MoreVertical className="h-5 w-5" /></button>
-        )}
+        <div className="relative">
+          <button
+            onClick={() => setHeaderMenuOpen((v) => !v)}
+            className="p-1.5 text-stone-500 hover:text-stone-700"
+            aria-label={t('common.menu', { defaultValue: 'Menu' })}
+          >
+            <MoreVertical className="h-5 w-5" />
+          </button>
+          {headerMenuOpen && (
+            <>
+              {/* 透明遮罩，点击空白关闭 */}
+              <div className="fixed inset-0 z-40" onClick={() => setHeaderMenuOpen(false)} />
+              {/* 下拉菜单：参考 Telegram，从三点按钮下方弹出，靠右对齐 */}
+              <div
+                className="absolute right-0 top-full z-50 mt-1.5 w-56 overflow-hidden rounded-xl border border-border bg-background shadow-xl animate-in fade-in slide-in-from-top-2"
+              >
+                <button
+                  onClick={handleViewProfileFromHeader}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"
+                >
+                  <UserIcon className="h-4 w-4 text-muted-foreground" />
+                  {isDirectChat ? t('chat.viewProfile') : t('chat.viewGroupInfo')}
+                </button>
+                <button
+                  onClick={handleSearchFromHeader}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"
+                >
+                  <SearchIcon className="h-4 w-4 text-muted-foreground" />
+                  {t('chat.searchInChat')}
+                </button>
+                <button
+                  onClick={handleToggleMuteFromHeader}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"
+                >
+                  {membership?.is_muted ? (
+                    <><Bell className="h-4 w-4 text-muted-foreground" /> {t('chat.unmuteChat')}</>
+                  ) : (
+                    <><BellOff className="h-4 w-4 text-muted-foreground" /> {t('chat.muteChat')}</>
+                  )}
+                </button>
+                <button
+                  onClick={handleTogglePinFromHeader}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"
+                >
+                  {membership?.is_pinned ? (
+                    <><PinOff className="h-4 w-4 text-muted-foreground" /> {t('chat.unpinConversation')}</>
+                  ) : (
+                    <><Pin className="h-4 w-4 text-muted-foreground" /> {t('chat.pinConversation')}</>
+                  )}
+                </button>
+                <div className="my-1 border-t border-border" />
+                <button
+                  onClick={handleClearChatFromHeader}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-foreground hover:bg-muted"
+                >
+                  <Eraser className="h-4 w-4 text-muted-foreground" />
+                  {t('chat.clearChat')}
+                </button>
+                <button
+                  onClick={handleDeleteChatFromHeader}
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-destructive hover:bg-muted"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {t('chat.deleteConversation')}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </header>
 
       {searchOpen && (
