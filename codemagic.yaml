@@ -49,8 +49,8 @@ workflows:
           fi
       - name: Set unique build number
         script: |
-          # Marketing version（用户看到的版本，如 1.22）
-          MARKETING_VERSION="1.22"
+          # Marketing version（用户看到的版本，如 1.2）
+          MARKETING_VERSION="1.2"
           echo "Setting marketing version: $MARKETING_VERSION"
           agvtool new-marketing-version "$MARKETING_VERSION"
           # Build number（基于 UTC 时间戳，单调递增，App Store Connect 要求唯一）
