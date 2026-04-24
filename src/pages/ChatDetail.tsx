@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical, X, FileText, Download, Loader2, Check, CheckCheck, Copy, Trash2, Undo2, Reply, Pencil, Forward, Search as SearchIcon, Lock, Flag, Smile } from 'lucide-react';
+import { ArrowLeft, Send, Image, Paperclip, Phone, Video, MoreVertical, X, FileText, Download, Loader2, Check, CheckCheck, Copy, Trash2, Undo2, Reply, Pencil, Forward, Search as SearchIcon, Lock, Flag, Smile, User as UserIcon, Bell, BellOff, Pin, PinOff, Eraser } from 'lucide-react';
 import { VoiceRecorder } from '@/components/chat/VoiceRecorder';
 import { VoicePlayer } from '@/components/chat/VoicePlayer';
 import { useAuth } from '@/hooks/useAuth';
-import { useMessages, useSendMessage, useConversation, useRecallMessage, useDeleteMessage, useReadReceipt } from '@/hooks/useConversations';
+import { useMessages, useSendMessage, useConversation, useRecallMessage, useDeleteMessage, useReadReceipt, useTogglePin, useToggleMute, useLeaveConversation } from '@/hooks/useConversations';
 import { usePublicProfile } from '@/hooks/useProfile';
 import { useCallContext } from '@/features/calling/CallProvider';
 import { CallMessageRenderer } from '@/features/calling/components/CallMessageRenderer';
