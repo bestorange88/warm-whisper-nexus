@@ -24,6 +24,11 @@
     --card-foreground: 25 5% 15%;
     --popover: 0 0% 100%;
     --popover-foreground: 25 5% 15%;
+    /* iOS 布局令牌：顶部导航高度 + 安全区，供页面统一引用 */
+    --header-h: 56px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --bottom-nav-h: 64px;
   }
 
   * {
@@ -38,7 +43,7 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans SC', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans SC', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -50,5 +55,31 @@
   }
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pt-safe {
+    padding-top: var(--safe-top);
+  }
+  .pb-safe {
+    padding-bottom: var(--safe-bottom);
+  }
+  .h-header {
+    height: calc(var(--header-h) + var(--safe-top));
+  }
+  .pt-header {
+    padding-top: calc(var(--header-h) + var(--safe-top));
+  }
+  .pb-bottom-nav {
+    padding-bottom: calc(var(--bottom-nav-h) + var(--safe-bottom));
+  }
+  /* 玻璃拟态工具类：用于 iOS 风格半透明导航与卡片 */
+  .glass {
+    background-color: hsl(var(--background) / 0.72);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+  }
+  .glass-strong {
+    background-color: hsl(var(--background) / 0.85);
+    -webkit-backdrop-filter: saturate(180%) blur(28px);
+    backdrop-filter: saturate(180%) blur(28px);
   }
 }
