@@ -28,15 +28,15 @@ export function MobileLayout() {
   return (
     <div className="flex h-full flex-col bg-white">
       {isMainRoute && (
-        <header className="safe-area-top flex h-12 shrink-0 items-center border-b border-stone-100 px-4">
+        <header className="pt-safe flex shrink-0 items-center border-b border-stone-100 px-4 py-2.5">
           <h1 className="text-lg font-semibold text-stone-900">{t('app.name')}</h1>
         </header>
       )}
-      <main className="min-h-0 flex-1 overflow-y-auto">
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <Outlet />
       </main>
       {isMainRoute && (
-        <nav className="safe-area-bottom flex shrink-0 border-t border-stone-100 bg-white">
+        <nav className="pb-safe flex shrink-0 border-t border-stone-100 bg-white">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
             const Icon = item.icon;
