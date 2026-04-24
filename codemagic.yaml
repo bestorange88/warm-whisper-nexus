@@ -177,38 +177,70 @@ workflows:
           xcodebuild -project "$PROJECT_PATH" -scheme "$XCODE_SCHEME" -showBuildSettings | grep -E "PRODUCT_BUNDLE_IDENTIFIER|DEVELOPMENT_TEAM|CODE_SIGN_STYLE|PROVISIONING_PROFILE_SPECIFIER|PROVISIONING_PROFILE|CODE_SIGN_IDENTITY" || true
       - name: Build IPA
         script: |
-          # 优先级：独立 .xcworkspace（CocoaPods）> 内嵌 project.xcworkspace（SPM）> .xcodeproj
+          # 优先级：完整的独立 .xcworkspace（CocoaPods）> 完整的内嵌 project.xcworkspace（SPM）> .xcodeproj
           PODFILE_PATH="$(find ios -maxdepth 4 -name Podfile | head -n 1)"
+          PROJECT_PATH="$XCODE_PROJECT"
           WORKSPACE_PATH=""
+          BUILD_WITH=""
 
-          if [ -n "$PODFILE_PATH" ]; then
-            # CocoaPods 模式：使用独立 workspace
-            WORKSPACE_PATH="$XCODE_WORKSPACE"
-            if [ ! -d "$WORKSPACE_PATH" ]; then
-              WORKSPACE_PATH="$(find ios -maxdepth 4 -name '*.xcworkspace' -not -path '*/project.xcworkspace' | head -n 1)"
-            fi
+          if [ ! -d "$PROJECT_PATH" ]; then
+            PROJECT_PATH="$(find ios -maxdepth 4 -name '*.xcodeproj' | head -n 1)"
           fi
 
-          # SPM 模式（无 Podfile）：使用 .xcodeproj 内嵌的 project.xcworkspace
-          # Xcode 26 在 SPM 项目中必须通过 workspace 才能解析 Package 依赖
-          if [ -z "$WORKSPACE_PATH" ] || [ ! -d "$WORKSPACE_PATH" ]; then
-            PROJECT_PATH="$XCODE_PROJECT"
-            if [ ! -d "$PROJECT_PATH" ]; then
-              PROJECT_PATH="$(find ios -maxdepth 4 -name '*.xcodeproj' | head -n 1)"
-            fi
-            WORKSPACE_PATH="$PROJECT_PATH/project.xcworkspace"
-          fi
-
-          if [ ! -d "$WORKSPACE_PATH" ]; then
-            echo "No Xcode workspace found"
+          if [ -z "$PROJECT_PATH" ] || [ ! -d "$PROJECT_PATH" ]; then
+            echo "❌ No Xcode project found"
             ls -R ios || true
             exit 1
           fi
 
-          echo "Building with workspace: $WORKSPACE_PATH"
-          xcode-project build-ipa \
-            --workspace "$WORKSPACE_PATH" \
-            --scheme "$XCODE_SCHEME"
+          SCHEME_PATH="$PROJECT_PATH/xcshareddata/xcschemes/$XCODE_SCHEME.xcscheme"
+          if [ ! -f "$SCHEME_PATH" ]; then
+            echo "❌ Shared scheme not found: $SCHEME_PATH"
+            echo "   CI 构建需要共享 scheme；请确认 $XCODE_SCHEME 已提交到 xcshareddata/xcschemes"
+            exit 1
+          fi
+
+          if [ -n "$PODFILE_PATH" ]; then
+            # CocoaPods 模式：仅使用完整的独立 workspace（必须包含 contents.xcworkspacedata）
+            WORKSPACE_PATH="$XCODE_WORKSPACE"
+            if [ ! -d "$WORKSPACE_PATH" ] || [ ! -f "$WORKSPACE_PATH/contents.xcworkspacedata" ]; then
+              WORKSPACE_PATH="$(find ios -maxdepth 4 -name '*.xcworkspace' -not -path '*/project.xcworkspace' | head -n 1)"
+            fi
+            if [ -n "$WORKSPACE_PATH" ] && [ -f "$WORKSPACE_PATH/contents.xcworkspacedata" ]; then
+              BUILD_WITH="workspace"
+            fi
+          fi
+
+          # SPM 内嵌 workspace 只有在内容完整时才使用；当前项目里该目录缺少 contents.xcworkspacedata，
+          # 直接传给 xcodebuild 会在 "showBuildSettings" 阶段以状态码 74 失败。
+          if [ -z "$BUILD_WITH" ]; then
+            WORKSPACE_PATH="$PROJECT_PATH/project.xcworkspace"
+            if [ -d "$WORKSPACE_PATH" ] && [ -f "$WORKSPACE_PATH/contents.xcworkspacedata" ]; then
+              BUILD_WITH="workspace"
+            fi
+          fi
+
+          if [ -z "$BUILD_WITH" ]; then
+            BUILD_WITH="project"
+            echo "⚠️ No complete workspace found; falling back to project build: $PROJECT_PATH"
+          fi
+
+          echo "Resolving Swift Package dependencies..."
+          xcodebuild -resolvePackageDependencies \
+            -project "$PROJECT_PATH" \
+            -scheme "$XCODE_SCHEME"
+
+          if [ "$BUILD_WITH" = "workspace" ]; then
+            echo "Building with workspace: $WORKSPACE_PATH"
+            xcode-project build-ipa \
+              --workspace "$WORKSPACE_PATH" \
+              --scheme "$XCODE_SCHEME"
+          else
+            echo "Building with project: $PROJECT_PATH"
+            xcode-project build-ipa \
+              --project "$PROJECT_PATH" \
+              --scheme "$XCODE_SCHEME"
+          fi
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
