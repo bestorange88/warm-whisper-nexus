@@ -563,10 +563,33 @@ export default function ChatDetail() {
     } catch (err: any) { toast.error(err.message || t('chat.recallFailed')); }
   };
 
-  const handleDelete = async () => {
+  // 仅为我删除：本地隐藏，不影响对方（参考 Telegram 的 "Delete for me"）
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() =>
+    user ? readHiddenMessages(user.id) : new Set()
+  );
+  useEffect(() => {
+    if (user) setHiddenIds(readHiddenMessages(user.id));
+  }, [user?.id]);
+
+  const handleDeleteForMe = () => {
+    if (!contextMenu || !user) return;
+    const msg = contextMenu.msg;
+    setContextMenu(null);
+    if (!window.confirm(t('chat.deleteConfirm'))) return;
+    setHiddenIds(prev => {
+      const next = new Set(prev);
+      next.add(msg.id);
+      writeHiddenMessages(user.id, next);
+      return next;
+    });
+    toast.success(t('chat.deleteSuccess'));
+  };
+
+  const handleDeleteForEveryone = async () => {
     if (!contextMenu || !user || !conversationId) return;
     const msg = contextMenu.msg;
     setContextMenu(null);
+    if (!window.confirm(t('chat.deleteForEveryoneConfirm'))) return;
     try {
       await deleteMessage.mutateAsync({ messageId: msg.id, conversationId, senderId: user.id });
       toast.success(t('chat.deleteSuccess'));
@@ -798,7 +821,8 @@ export default function ChatDetail() {
           position={{ x: contextMenu.x, y: contextMenu.y }}
           onClose={() => setContextMenu(null)}
           onRecall={handleRecall}
-          onDelete={handleDelete}
+          onDeleteForMe={handleDeleteForMe}
+          onDeleteForEveryone={handleDeleteForEveryone}
           onCopy={handleCopy}
           onReply={handleReply}
           onEdit={handleEdit}
