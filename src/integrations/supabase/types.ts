@@ -622,6 +622,7 @@ export type Database = {
       }
     }
     Functions: {
+      _call_send_push: { Args: { _payload: Json }; Returns: undefined }
       is_conversation_member: {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
