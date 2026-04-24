@@ -123,8 +123,11 @@ workflows:
           fi
           agvtool new-marketing-version "$MARKETING_VERSION"
 
-          # Build number（UTC 时间戳，单调递增，App Store Connect 要求唯一）
-          BUILD_NUMBER=$(date -u +%y%m%d%H%M%S)
+          # 统一使用 Unix epoch 秒级时间戳：
+          # - iOS 可直接作为 CURRENT_PROJECT_VERSION
+          # - Android versionCode 仍小于 32 位 int 上限（2038 年前安全）
+          # - 两端规则一致，避免渠道侧版本追踪混乱
+          BUILD_NUMBER=$(date -u +%s)
           echo "Using build number: $BUILD_NUMBER"
           agvtool new-version -all "$BUILD_NUMBER"
 
@@ -409,8 +412,9 @@ workflows:
           fi
       - name: Set version name and code
         script: |
-          # versionCode：10 位 UTC 时间戳，确保 < 2^31（int 最大约 21 亿，10 位足够单调递增到 2099 年）
-          BUILD_NUMBER=$(date -u +%y%m%d%H%M)
+          # 与 iOS 使用同一 build number 规则：Unix epoch 秒级时间戳
+          # 这样 iOS CURRENT_PROJECT_VERSION / Android versionCode 可一一对应
+          BUILD_NUMBER=$(date -u +%s)
           echo "Using versionName: $MARKETING_VERSION, versionCode: $BUILD_NUMBER"
 
           GRADLE="android/app/build.gradle"
