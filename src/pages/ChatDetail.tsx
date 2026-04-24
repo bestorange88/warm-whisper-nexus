@@ -658,10 +658,12 @@ export default function ChatDetail() {
 
   const filteredMessages = useMemo(() => {
     if (!messages) return [];
-    if (!searchQuery.trim()) return messages;
+    // 先过滤掉本地"仅为我删除"的消息
+    const visible = hiddenIds.size > 0 ? messages.filter(m => !hiddenIds.has(m.id)) : messages;
+    if (!searchQuery.trim()) return visible;
     const q = searchQuery.toLowerCase();
-    return messages.filter(m => m.content?.toLowerCase().includes(q));
-  }, [messages, searchQuery]);
+    return visible.filter(m => m.content?.toLowerCase().includes(q));
+  }, [messages, searchQuery, hiddenIds]);
 
   if (isLoading) return <FullPageLoading />;
 
