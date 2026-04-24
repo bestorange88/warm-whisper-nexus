@@ -22,7 +22,7 @@
  *   APNS_AUTH_KEY      — .p8 文件全文（包含 -----BEGIN PRIVATE KEY----- 行）
  *   APNS_USE_SANDBOX   — "true" 走 sandbox（开发/TestFlight），其他走生产，默认 false
  */
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
