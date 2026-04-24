@@ -277,6 +277,9 @@ export default function ChatDetail() {
   const sendMessage = useSendMessage();
   const recallMessage = useRecallMessage();
   const deleteMessage = useDeleteMessage();
+  const togglePin = useTogglePin();
+  const toggleMute = useToggleMute();
+  const leaveConversation = useLeaveConversation();
   const { initiateCall } = useCallContext();
   const [input, setInput] = useState('');
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
@@ -291,6 +294,9 @@ export default function ChatDetail() {
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  // 当前用户在此会话中的成员状态（is_pinned / is_muted），用于头部菜单
+  const [membership, setMembership] = useState<{ is_pinned: boolean; is_muted: boolean } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
