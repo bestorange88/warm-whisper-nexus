@@ -10,6 +10,7 @@ import { useGlobalNotifications } from '@/hooks/useGlobalNotifications';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { lazy, Suspense } from 'react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { DefenseRoot } from '@/components/defense/DefenseRoot';
 
 const LazyCallOverlay = lazy(() => import('@/features/calling/components/LazyCallOverlay'));
 
@@ -110,8 +111,9 @@ function ResponsiveShell() {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+    <DefenseRoot>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
         <div className="mx-auto h-app w-full bg-background md:max-w-none">
           <Routes>
             <Route element={<PublicRoute />}>
@@ -162,7 +164,8 @@ export default function App() {
           </Routes>
         </div>
         <Toaster position="top-center" richColors closeButton />
-      </BrowserRouter>
-    </QueryClientProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </DefenseRoot>
   );
 }
