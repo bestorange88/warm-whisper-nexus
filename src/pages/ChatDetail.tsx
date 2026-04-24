@@ -655,6 +655,60 @@ export default function ChatDetail() {
     navigate(`/report/message/${messageId}`);
   };
 
+  // ====== 头部下拉菜单（参考 Telegram）======
+  const handleViewProfileFromHeader = () => {
+    setHeaderMenuOpen(false);
+    if (isDirectChat) navigate(`/profile/${otherUserId}`);
+    else navigate(`/group/${conversationId}`);
+  };
+  const handleSearchFromHeader = () => {
+    setHeaderMenuOpen(false);
+    setSearchOpen(true);
+  };
+  const handleToggleMuteFromHeader = async () => {
+    setHeaderMenuOpen(false);
+    if (!user || !conversationId) return;
+    const next = !(membership?.is_muted);
+    try {
+      await toggleMute.mutateAsync({ conversationId, userId: user.id, muted: next });
+      setMembership((m) => ({ is_pinned: m?.is_pinned ?? false, is_muted: next }));
+      toast.success(next ? t('chat.muted') : t('chat.unmuted'));
+    } catch { toast.error(t('chat.operationFailed')); }
+  };
+  const handleTogglePinFromHeader = async () => {
+    setHeaderMenuOpen(false);
+    if (!user || !conversationId) return;
+    const next = !(membership?.is_pinned);
+    try {
+      await togglePin.mutateAsync({ conversationId, userId: user.id, pinned: next });
+      setMembership((m) => ({ is_pinned: next, is_muted: m?.is_muted ?? false }));
+      toast.success(next ? t('chat.pinned') : t('chat.unpinned'));
+    } catch { toast.error(t('chat.operationFailed')); }
+  };
+  const handleClearChatFromHeader = () => {
+    setHeaderMenuOpen(false);
+    if (!user || !messages || messages.length === 0) return;
+    if (!window.confirm(t('chat.clearChatConfirm'))) return;
+    // 清空 = 把当前所有消息加入"仅为我"隐藏列表（与单条删除共用本地存储）
+    setHiddenIds((prev) => {
+      const next = new Set(prev);
+      messages.forEach((m) => next.add(m.id));
+      writeHiddenMessages(user.id, next);
+      return next;
+    });
+    toast.success(t('chat.chatCleared'));
+  };
+  const handleDeleteChatFromHeader = async () => {
+    setHeaderMenuOpen(false);
+    if (!user || !conversationId) return;
+    if (!window.confirm(t('chat.deleteChatConfirm'))) return;
+    try {
+      await leaveConversation.mutateAsync({ conversationId, userId: user.id });
+      toast.success(t('chat.conversationDeleted'));
+      navigate('/conversations');
+    } catch { toast.error(t('chat.deleteFailed2')); }
+  };
+
   const handleForwardTo = async (targetConvId: string) => {
     if (!forwardMsg || !user) return;
     try {
