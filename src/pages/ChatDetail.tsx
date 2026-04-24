@@ -594,7 +594,7 @@ export default function ChatDetail() {
 
   return (
     <div className="flex h-full flex-col bg-stone-50">
-      <header className="safe-area-top flex h-12 shrink-0 items-center gap-2 border-b border-stone-100 bg-white px-3">
+      <header className="pt-safe flex shrink-0 items-center gap-2 border-b border-stone-100 bg-white px-3 py-2">
         <button onClick={() => navigate(-1)} className="text-stone-600"><ArrowLeft className="h-5 w-5" /></button>
         <UserAvatar src={chatAvatar} name={chatName} size="sm" />
         <h1 className="flex-1 truncate text-base font-semibold text-stone-900">

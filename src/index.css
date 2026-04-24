@@ -28,6 +28,14 @@
     --header-h: 56px;
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    /* 键盘高度，由 Capacitor Keyboard 监听器写入 */
+    --keyboard-h: 0px;
+    /* 视口高度：优先 small viewport（避免 iOS 地址栏抖动）；若不支持回退到 dvh/vh */
+    --app-h: 100vh;
+    --app-h: 100dvh;
+    --app-h: 100svh;
     --bottom-nav-h: 64px;
   }
 
@@ -41,11 +49,29 @@
     overscroll-behavior: none;
   }
 
+  html, body {
+    /* 防止 iOS 橡皮筋滚动导致的内容位移 */
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans SC', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* iOS 输入框默认会有圆角阴影，统一去除 */
+  input, textarea, select, button {
+    -webkit-appearance: none;
+    appearance: none;
+    font-family: inherit;
+  }
+  input:focus, textarea:focus {
+    outline: none;
   }
 }
 
@@ -54,13 +80,26 @@
     padding-top: env(safe-area-inset-top);
   }
   .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom);
+    /* 键盘弹出时让出键盘高度，否则使用 home indicator 安全区 */
+    padding-bottom: max(env(safe-area-inset-bottom), var(--keyboard-h));
   }
   .pt-safe {
     padding-top: var(--safe-top);
   }
   .pb-safe {
-    padding-bottom: var(--safe-bottom);
+    padding-bottom: max(var(--safe-bottom), var(--keyboard-h));
+  }
+  .pl-safe {
+    padding-left: var(--safe-left);
+  }
+  .pr-safe {
+    padding-right: var(--safe-right);
+  }
+  .h-app {
+    height: var(--app-h);
+  }
+  .min-h-app {
+    min-height: var(--app-h);
   }
   .h-header {
     height: calc(var(--header-h) + var(--safe-top));

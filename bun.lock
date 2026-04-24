@@ -10,7 +10,9 @@
         "@capacitor/cli": "^8.3.0",
         "@capacitor/core": "^8.3.0",
         "@capacitor/ios": "^8.3.0",
+        "@capacitor/keyboard": "^7.0.0",
         "@capacitor/push-notifications": "^8.0.3",
+        "@capacitor/status-bar": "^7.0.0",
         "@hookform/resolvers": "^3.10.0",
         "@radix-ui/react-accordion": "^1.2.11",
         "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -115,7 +117,11 @@
 
     "@capacitor/ios": ["@capacitor/ios@8.3.1", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@capacitor/ios/-/ios-8.3.1.tgz", { "peerDependencies": { "@capacitor/core": "^8.3.0" } }, "sha512-BEhLyYYHWJLib4mpaPMaaylbC8meqgxbNYwQJH2svsSLW7yo/hFie+Zoo66a44XnqcMd2tvmAuzimWunXZi/xA=="],
 
+    "@capacitor/keyboard": ["@capacitor/keyboard@7.0.6", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@capacitor/keyboard/-/keyboard-7.0.6.tgz", { "peerDependencies": { "@capacitor/core": ">=7.0.0" } }, "sha512-mH9EHo4EnBA9zJAi6domGVB/PdEkcm0h27nJDHG4Y3fd2oKsheCxDRXlYrbgj8hcyQPe0cGWqAfzfwKzkWQoFQ=="],
+
     "@capacitor/push-notifications": ["@capacitor/push-notifications@8.0.3", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@capacitor/push-notifications/-/push-notifications-8.0.3.tgz", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-jmBBoJvOzmzem8YoO9dQJBPFiM1bksTNAoV7yksCBN10BybAOtmBF19vFPt/jr2KGAirnPZz0ne2X0OH/rRGtg=="],
+
+    "@capacitor/status-bar": ["@capacitor/status-bar@7.0.6", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@capacitor/status-bar/-/status-bar-7.0.6.tgz", { "peerDependencies": { "@capacitor/core": ">=7.0.0" } }, "sha512-7AVqj46b26QikImQzWfsJmzG8NUJZBGkrVSuoeTo+SX/YH3hXH0MqwwFgMqMGHfa/BICDgSvTjM9miVFlq0+RQ=="],
 
     "@esbuild/aix-ppc64": ["@esbuild/aix-ppc64@0.25.0", "", { "os": "aix", "cpu": "ppc64" }, "sha512-O7vun9Sf8DFjH2UtqK8Ku3LkquL9SZL8OLY1T5NZkA34+wG3OQF7cl4Ql8vdNzM6fzBbYfLaiRLIOZ+2FOCgBQ=="],
 
@@ -653,7 +659,7 @@
 
     "data-urls": ["data-urls@3.0.2", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/data-urls/-/data-urls-3.0.2.tgz", { "dependencies": { "abab": "^2.0.6", "whatwg-mimetype": "^3.0.0", "whatwg-url": "^11.0.0" } }, "sha512-Jy/tj3ldjZJo63sVAvg6LHt2mHvl4V6AgRAmNDtLdm7faqtsx+aJG42rsyCo9JCoRVKwPFzKlIPx3DIibwSIaQ=="],
 
-    "date-fns": ["date-fns@3.6.0", "https://europe-west1-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/date-fns/-/date-fns-3.6.0.tgz", {}, "sha512-fRHTG8g/Gif+kSh50gaGEdToemgfj74aRX3swtiouboip5JDLAyDE9F11nHMIcvOaXeOC6D7SpNhi7uFyB7Uww=="],
+    "date-fns": ["date-fns@3.6.0", "", {}, "sha512-fRHTG8g/Gif+kSh50gaGEdToemgfj74aRX3swtiouboip5JDLAyDE9F11nHMIcvOaXeOC6D7SpNhi7uFyB7Uww=="],
 
     "debug": ["debug@4.3.7", "", { "dependencies": { "ms": "^2.1.3" } }, "sha512-Er2nc/H7RrMXZBFCEim6TCmMk02Z8vLC2Rbi1KEBggpo0fS6l0S1nnapwmIi3yW/+GOJap1Krg4w0Hg80oCqgQ=="],
 
