@@ -322,8 +322,8 @@ workflows:
         - android_credentials
       vars:
         BUNDLE_ID: "chat.archime.app"
-        # 营销版本号（与 iOS workflow 保持一致）
-        MARKETING_VERSION: "1.2"
+        # 营销版本号与 iOS 使用同一真源，避免手动改一端漏另一端
+        MARKETING_VERSION: *marketing_version
         VITE_SUPABASE_PROJECT_ID: "ozkbiywqvbfqpjgqvkdq"
         VITE_SUPABASE_URL: "https://ozkbiywqvbfqpjgqvkdq.supabase.co"
         VITE_SUPABASE_PUBLISHABLE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96a2JpeXdxdmJmcXBqZ3F2a2RxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzYyMzEsImV4cCI6MjA5MTMxMjIzMX0.a38le1TH5lccW-e7qEkb0XzGSZlf51l-x3gDjS7KlDA"
@@ -435,6 +435,23 @@ workflows:
             exit 1
           fi
           echo "✅ Android 版本写入成功: $ACTUAL_NAME ($ACTUAL_CODE)"
+
+      - name: Verify cross-platform marketing version sync
+        script: |
+          IOS_VERSION=$(awk '/MARKETING_VERSION: &marketing_version/{gsub(/"/, "", $3); print $3; exit}' codemagic.yaml)
+          ANDROID_VERSION=$(awk '/MARKETING_VERSION: \*marketing_version/{print ENVIRON["MARKETING_VERSION"]; exit}' codemagic.yaml)
+
+          if [ -z "$IOS_VERSION" ] || [ -z "$ANDROID_VERSION" ]; then
+            echo "❌ 无法解析 codemagic.yaml 中的跨平台版本配置"
+            exit 1
+          fi
+
+          if [ "$IOS_VERSION" != "$ANDROID_VERSION" ]; then
+            echo "❌ iOS/Android marketing version 不一致: iOS=$IOS_VERSION Android=$ANDROID_VERSION"
+            exit 1
+          fi
+
+          echo "✅ iOS/Android marketing version 已同步: $IOS_VERSION"
       - name: Build APK and AAB
         script: |
           cd android
