@@ -396,6 +396,41 @@ workflows:
             exit 1
           fi
           echo "✅ MARKETING_VERSION 校验通过: $MARKETING_VERSION"
+      - name: Defense pre-build guard (Android)
+        script: |
+          if [ "$DEFENSE_BUILD_GUARD" = "off" ]; then
+            echo "⚠️ DEFENSE_BUILD_GUARD=off，跳过构建门禁（仅限调试）"
+            exit 0
+          fi
+
+          echo "🔒 [1/3] 扫描源码敏感字符串..."
+          LEAK=$(grep -RInE '(SUPABASE_SERVICE_ROLE_KEY|sk_live_[A-Za-z0-9]+|AKIA[0-9A-Z]{16}|-----BEGIN (RSA |EC )?PRIVATE KEY-----)' \
+            src supabase/functions 2>/dev/null || true)
+          if [ -n "$LEAK" ]; then
+            echo "❌ 检测到疑似敏感信息硬编码："
+            echo "$LEAK"
+            exit 1
+          fi
+
+          echo "🔒 [2/3] 校验防御层文件未被删除..."
+          for f in \
+            src/lib/defense/index.ts \
+            src/lib/defense/flags.ts \
+            src/components/defense/DefenseRoot.tsx \
+            FREEZE_DEFENSE.md; do
+            if [ ! -f "$f" ]; then
+              echo "❌ 防御层文件缺失：$f（已被 FREEZE_DEFENSE.md 冻结）"
+              exit 1
+            fi
+          done
+
+          echo "🔒 [3/3] 检查 lockfile..."
+          if [ ! -f bun.lock ] && [ ! -f bun.lockb ] && [ ! -f package-lock.json ]; then
+            echo "❌ 未找到任何 lockfile，构建不可复现"
+            exit 1
+          fi
+
+          echo "✅ 防御层构建门禁通过"
       - name: Install dependencies
         script: |
           npm install
