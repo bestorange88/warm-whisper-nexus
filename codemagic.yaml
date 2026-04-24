@@ -45,6 +45,49 @@ workflows:
       - name: Install dependencies
         script: |
           npm install
+      - name: Validate Capacitor iOS plugin versions
+        script: |
+          node <<'EOF'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const all = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
+          const plugins = [
+            '@capacitor/core',
+            '@capacitor/ios',
+            '@capacitor/android',
+            '@capacitor/cli',
+            '@capacitor/push-notifications',
+            '@capacitor/status-bar',
+            '@capacitor/keyboard',
+          ];
+
+          const normalizeMajor = (value) => {
+            if (!value) return null;
+            const match = String(value).match(/(\d+)/);
+            return match ? Number(match[1]) : null;
+          };
+
+          const versions = plugins
+            .filter((name) => all[name])
+            .map((name) => ({ name, version: all[name], major: normalizeMajor(all[name]) }));
+
+          const invalid = versions.filter((item) => item.major == null);
+          if (invalid.length) {
+            console.error('❌ 无法解析以下 Capacitor 版本号:');
+            invalid.forEach((item) => console.error(`   - ${item.name}: ${item.version}`));
+            process.exit(1);
+          }
+
+          const majors = [...new Set(versions.map((item) => item.major))];
+          if (majors.length > 1) {
+            console.error('❌ 检测到 Capacitor iOS 插件主版本不一致，Swift Package 依赖会冲突：');
+            versions.forEach((item) => console.error(`   - ${item.name}: ${item.version}`));
+            console.error('   要求：所有 @capacitor/* 插件主版本保持一致（当前项目应统一为 8.x）');
+            process.exit(1);
+          }
+
+          console.log(`✅ Capacitor 插件主版本一致: ${majors[0]}.x`);
+          EOF
       - name: Build web assets
         script: |
           # 写入 .env 以确保 Vite 构建时能读到 Supabase 配置（避免原生包白屏）
@@ -288,6 +331,49 @@ workflows:
       - name: Install dependencies
         script: |
           npm install
+      - name: Validate Capacitor Android plugin versions
+        script: |
+          node <<'EOF'
+          const fs = require('fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const all = { ...(pkg.dependencies || {}), ...(pkg.devDependencies || {}) };
+          const plugins = [
+            '@capacitor/core',
+            '@capacitor/ios',
+            '@capacitor/android',
+            '@capacitor/cli',
+            '@capacitor/push-notifications',
+            '@capacitor/status-bar',
+            '@capacitor/keyboard',
+          ];
+
+          const normalizeMajor = (value) => {
+            if (!value) return null;
+            const match = String(value).match(/(\d+)/);
+            return match ? Number(match[1]) : null;
+          };
+
+          const versions = plugins
+            .filter((name) => all[name])
+            .map((name) => ({ name, version: all[name], major: normalizeMajor(all[name]) }));
+
+          const invalid = versions.filter((item) => item.major == null);
+          if (invalid.length) {
+            console.error('❌ 无法解析以下 Capacitor 版本号:');
+            invalid.forEach((item) => console.error(`   - ${item.name}: ${item.version}`));
+            process.exit(1);
+          }
+
+          const majors = [...new Set(versions.map((item) => item.major))];
+          if (majors.length > 1) {
+            console.error('❌ 检测到 Capacitor 插件主版本不一致，原生构建会失败：');
+            versions.forEach((item) => console.error(`   - ${item.name}: ${item.version}`));
+            console.error('   要求：所有 @capacitor/* 插件主版本保持一致（当前项目应统一为 8.x）');
+            process.exit(1);
+          }
+
+          console.log(`✅ Capacitor 插件主版本一致: ${majors[0]}.x`);
+          EOF
       - name: Build web assets
         script: |
           # 写入 .env 以确保 Vite 构建时能读到 Supabase 配置（避免原生包白屏）
