@@ -46,15 +46,16 @@ export function usePushNotifications() {
           console.error('[Push] Registration error:', err);
         });
 
-        // Handle received notifications while app is in foreground
+        // 前台收到通知：来电类型直接派发事件，让 CallProvider 弹出来电界面
         PushNotifications.addListener('pushNotificationReceived', (notification) => {
           console.log('[Push] Received in foreground:', notification);
+          handlePushPayload(notification.data);
         });
 
-        // Handle notification tap (app opened from notification)
+        // 用户点击通知（App 从后台/锁屏被唤醒）
         PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
           console.log('[Push] Action performed:', action);
-          // TODO: navigate to the relevant conversation
+          handlePushPayload(action.notification?.data);
         });
       } catch (err) {
         console.error('[Push] Setup error:', err);
@@ -90,4 +91,51 @@ export function usePushNotifications() {
       PushNotifications.removeAllListeners();
     };
   }, [user]);
+}
+
+/**
+ * 解析推送 payload 并分发到对应处理逻辑。
+ * APNs 的 data 字段在传输中会被序列化为字符串，这里做一次健壮的解析。
+ */
+function handlePushPayload(rawData: any): void {
+  if (!rawData || typeof window === 'undefined') return;
+
+  const data: Record<string, any> = {};
+  for (const [k, v] of Object.entries(rawData)) {
+    if (typeof v === 'string') {
+      // 尝试把字符串化的 JSON 字段还原（如 callType / callerId 等）
+      try {
+        data[k] = JSON.parse(v);
+      } catch {
+        data[k] = v;
+      }
+    } else {
+      data[k] = v;
+    }
+  }
+
+  const type = data.type;
+
+  if (type === 'incoming_call' && data.callSessionId) {
+    // 通过全局事件让 CallProvider 弹出来电界面（避免循环依赖 CallContext）
+    window.dispatchEvent(
+      new CustomEvent('archime:push:incoming_call', {
+        detail: {
+          callSessionId: String(data.callSessionId),
+          conversationId: String(data.conversationId || ''),
+          callType: (data.callType === 'video' ? 'video' : 'audio') as 'video' | 'audio',
+          callerId: String(data.callerId || ''),
+        },
+      }),
+    );
+    return;
+  }
+
+  if (type === 'message' && data.conversationId) {
+    window.dispatchEvent(
+      new CustomEvent('archime:push:message', {
+        detail: { conversationId: String(data.conversationId) },
+      }),
+    );
+  }
 }

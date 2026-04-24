@@ -136,6 +136,63 @@ export function CallProvider({ children }: { children: ReactNode }) {
     };
   }, [user]);
 
+  // 监听来自原生推送的"点击通知/前台收到来电"事件，主动拉起来电界面
+  useEffect(() => {
+    if (!user) return;
+
+    const handler = async (e: Event) => {
+      const detail = (e as CustomEvent).detail as {
+        callSessionId: string;
+        conversationId: string;
+        callType: 'video' | 'audio';
+        callerId: string;
+      } | undefined;
+      if (!detail?.callSessionId) return;
+
+      // 已经在通话中（任何非 idle 状态）就忽略，避免覆盖正在进行的通话
+      if (stateRef.current.callState !== 'idle') return;
+
+      // 拉取最新的 call_sessions，确认通话仍然有效（未被取消/超时）
+      const { data: session } = await supabase
+        .from('call_sessions')
+        .select('*')
+        .eq('id', detail.callSessionId)
+        .single();
+
+      if (!session) return;
+      if (session.callee_id !== user.id) return;
+      if (!['initiated', 'ringing'].includes(session.status)) return;
+
+      // 拉取拨打方资料
+      const { data: callerProfile } = await supabase
+        .from('public_profiles' as any)
+        .select('display_name, avatar_url, username')
+        .eq('id', session.caller_id)
+        .single();
+
+      dispatch({
+        type: 'INCOMING_CALL',
+        payload: {
+          callSessionId: session.id,
+          conversationId: session.conversation_id,
+          callType: session.call_type as CallType,
+          callerId: session.caller_id,
+          calleeId: session.callee_id,
+          hmsRoomId: session.hms_room_id,
+          hmsToken: null,
+          callerName:
+            (callerProfile as any)?.display_name ||
+            (callerProfile as any)?.username ||
+            '未知用户',
+          callerAvatar: (callerProfile as any)?.avatar_url || undefined,
+        },
+      });
+    };
+
+    window.addEventListener('archime:push:incoming_call', handler);
+    return () => window.removeEventListener('archime:push:incoming_call', handler);
+  }, [user]);
+
   // Dial timeout
   useEffect(() => {
     if (state.callState === 'dialing') {
