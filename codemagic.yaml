@@ -19,8 +19,9 @@ workflows:
         XCODE_WORKSPACE: "ios/App/App.xcworkspace"
         XCODE_SCHEME: "App"
         # 营销版本号（用户在 App Store 看到的版本，必须为 X.Y 或 X.Y.Z 格式）
-        # 修改这里会同时影响 iOS / Android 两端，保证渠道版本一致
-        MARKETING_VERSION: "1.2"
+        # 单一真源：Android workflow 通过 YAML alias 复用此值，避免再出现 iOS/Android 不一致
+        # 1.2 已在 App Store Connect 关闭提交通道，因此这里提升到 1.2.1
+        MARKETING_VERSION: &marketing_version "1.2.1"
         VITE_SUPABASE_PROJECT_ID: "ozkbiywqvbfqpjgqvkdq"
         VITE_SUPABASE_URL: "https://ozkbiywqvbfqpjgqvkdq.supabase.co"
         VITE_SUPABASE_PUBLISHABLE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96a2JpeXdxdmJmcXBqZ3F2a2RxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzYyMzEsImV4cCI6MjA5MTMxMjIzMX0.a38le1TH5lccW-e7qEkb0XzGSZlf51l-x3gDjS7KlDA"
@@ -31,7 +32,7 @@ workflows:
       - name: Validate marketing version
         script: |
           # 营销版本号格式校验：必须是 X.Y 或 X.Y.Z（数字，每段最多 3 位）
-          # 防止误填如 "1,2" "v1.2" "1.2.3.4" "1.22a" 等导致 App Store / agvtool 拒绝
+          # 防止误填如 "1,2" "v1.2" "1.2.3.4" "1.22a"，或将 1.22 误改成 1.2 后触发已关闭 train 上传失败
           if [ -z "$MARKETING_VERSION" ]; then
             echo "❌ MARKETING_VERSION 未设置"
             exit 1
@@ -39,6 +40,11 @@ workflows:
           if ! echo "$MARKETING_VERSION" | grep -Eq '^[0-9]{1,3}\.[0-9]{1,3}(\.[0-9]{1,3})?$'; then
             echo "❌ MARKETING_VERSION 格式无效: '$MARKETING_VERSION'"
             echo "   要求: X.Y 或 X.Y.Z（每段 1-3 位数字），例如 1.2 / 1.2.0 / 1.22"
+            exit 1
+          fi
+          if [ "$MARKETING_VERSION" = "1.2" ]; then
+            echo "❌ 当前 MARKETING_VERSION=1.2，但 App Store Connect 的 1.2 版本通道已关闭，无法继续上传。"
+            echo "   请将版本提升为更高版本，例如 1.2.1 或 1.3。"
             exit 1
           fi
           echo "✅ MARKETING_VERSION 校验通过: $MARKETING_VERSION"
@@ -111,10 +117,17 @@ workflows:
         script: |
           # Marketing version 来自 workflow 顶层 vars，保持 iOS / Android 一致
           echo "Setting marketing version: $MARKETING_VERSION"
+          PREVIOUS_MARKETING=$(agvtool what-marketing-version -terse1 | tail -n 1 || true)
+          if [ -n "$PREVIOUS_MARKETING" ]; then
+            echo "Previous marketing version in project: $PREVIOUS_MARKETING"
+          fi
           agvtool new-marketing-version "$MARKETING_VERSION"
 
-          # Build number（UTC 时间戳，单调递增，App Store Connect 要求唯一）
-          BUILD_NUMBER=$(date -u +%y%m%d%H%M%S)
+          # 统一使用 Unix epoch 秒级时间戳：
+          # - iOS 可直接作为 CURRENT_PROJECT_VERSION
+          # - Android versionCode 仍小于 32 位 int 上限（2038 年前安全）
+          # - 两端规则一致，避免渠道侧版本追踪混乱
+          BUILD_NUMBER=$(date -u +%s)
           echo "Using build number: $BUILD_NUMBER"
           agvtool new-version -all "$BUILD_NUMBER"
 
@@ -128,6 +141,10 @@ workflows:
           if [ "$ACTUAL_BUILD" != "$BUILD_NUMBER" ]; then
             echo "❌ Build number 写入失败: 预期 '$BUILD_NUMBER'，实际 '$ACTUAL_BUILD'"
             exit 1
+          fi
+          if [ "$ACTUAL_MARKETING" = "$PREVIOUS_MARKETING" ]; then
+            echo "⚠️ Marketing version 未变化：仍为 $ACTUAL_MARKETING"
+            echo "   若上一个已上架版本也是该值，上传到 App Store Connect 会被拒绝。"
           fi
           echo "✅ iOS 版本写入成功: $ACTUAL_MARKETING ($ACTUAL_BUILD)"
         working_directory: ios/App
@@ -308,8 +325,8 @@ workflows:
         - android_credentials
       vars:
         BUNDLE_ID: "chat.archime.app"
-        # 营销版本号（与 iOS workflow 保持一致）
-        MARKETING_VERSION: "1.2"
+        # 营销版本号与 iOS 使用同一真源，避免手动改一端漏另一端
+        MARKETING_VERSION: *marketing_version
         VITE_SUPABASE_PROJECT_ID: "ozkbiywqvbfqpjgqvkdq"
         VITE_SUPABASE_URL: "https://ozkbiywqvbfqpjgqvkdq.supabase.co"
         VITE_SUPABASE_PUBLISHABLE_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96a2JpeXdxdmJmcXBqZ3F2a2RxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzYyMzEsImV4cCI6MjA5MTMxMjIzMX0.a38le1TH5lccW-e7qEkb0XzGSZlf51l-x3gDjS7KlDA"
@@ -395,8 +412,9 @@ workflows:
           fi
       - name: Set version name and code
         script: |
-          # versionCode：10 位 UTC 时间戳，确保 < 2^31（int 最大约 21 亿，10 位足够单调递增到 2099 年）
-          BUILD_NUMBER=$(date -u +%y%m%d%H%M)
+          # 与 iOS 使用同一 build number 规则：Unix epoch 秒级时间戳
+          # 这样 iOS CURRENT_PROJECT_VERSION / Android versionCode 可一一对应
+          BUILD_NUMBER=$(date -u +%s)
           echo "Using versionName: $MARKETING_VERSION, versionCode: $BUILD_NUMBER"
 
           GRADLE="android/app/build.gradle"
@@ -421,6 +439,23 @@ workflows:
             exit 1
           fi
           echo "✅ Android 版本写入成功: $ACTUAL_NAME ($ACTUAL_CODE)"
+
+      - name: Verify cross-platform marketing version sync
+        script: |
+          IOS_VERSION=$(awk '/MARKETING_VERSION: &marketing_version/{gsub(/"/, "", $3); print $3; exit}' codemagic.yaml)
+          ANDROID_VERSION=$(awk '/MARKETING_VERSION: \*marketing_version/{print ENVIRON["MARKETING_VERSION"]; exit}' codemagic.yaml)
+
+          if [ -z "$IOS_VERSION" ] || [ -z "$ANDROID_VERSION" ]; then
+            echo "❌ 无法解析 codemagic.yaml 中的跨平台版本配置"
+            exit 1
+          fi
+
+          if [ "$IOS_VERSION" != "$ANDROID_VERSION" ]; then
+            echo "❌ iOS/Android marketing version 不一致: iOS=$IOS_VERSION Android=$ANDROID_VERSION"
+            exit 1
+          fi
+
+          echo "✅ iOS/Android marketing version 已同步: $IOS_VERSION"
       - name: Build APK and AAB
         script: |
           cd android
