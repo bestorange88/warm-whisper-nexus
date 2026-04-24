@@ -459,3 +459,39 @@ export function useTogglePin() {
     },
   });
 }
+
+/** Toggle mute/unmute notifications for a conversation */
+export function useToggleMute() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { conversationId: string; userId: string; muted: boolean }) => {
+      const { error } = await supabase
+        .from('conversation_members')
+        .update({ is_muted: params.muted })
+        .eq('conversation_id', params.conversationId)
+        .eq('user_id', params.userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+}
+
+/** Leave / delete a conversation membership for the current user (Telegram 的"删除聊天") */
+export function useLeaveConversation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { conversationId: string; userId: string }) => {
+      const { error } = await supabase
+        .from('conversation_members')
+        .delete()
+        .eq('conversation_id', params.conversationId)
+        .eq('user_id', params.userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    },
+  });
+}
