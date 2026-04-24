@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import i18n from '@/i18n';
+import { notifyForeground } from '@/lib/notifications/feedback';
 
 type PendingFriendRequest = {
   id: string;
@@ -95,6 +96,12 @@ export function useFriendRequestNotifications(user: User | null) {
           },
         },
         duration: 5000,
+      });
+
+      notifyForeground({
+        title: t('contacts.friendRequestReceived', { name }),
+        tag: `friend-request:${request.id}`,
+        navigateTo: '/friend-requests',
       });
     };
 
